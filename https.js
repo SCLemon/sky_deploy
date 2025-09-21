@@ -18,6 +18,10 @@ app.use('/api/', createProxyMiddleware({
   target: 'http://127.0.0.1:3007/api/',
   changeOrigin:true
 }));
+app.use('/login/', createProxyMiddleware({
+  target: 'http://127.0.0.1:3007/login/',
+  changeOrigin: true
+}));
 
 app.use(express.static(path.join(__dirname, 'dist')));
 
