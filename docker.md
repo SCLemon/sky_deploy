@@ -13,6 +13,8 @@ docker run -d --name sky_mongo --network sky_net -v D:\sky_docker_mongodb:/data/
 開啟
 
 docker exec -it <container_id_or_name> bash
+ex. docker exec -it 5822f574cd79ca1b9556ca99139db6ebdd7ac7e7f408875c9d32079478761c4b bash
+
 
 停止
 docker stop <container_id_or_name>
@@ -21,25 +23,60 @@ docker stop <container_id_or_name>
 
 exit
 
-
+---------------------------------------------------------
 設置主專案 Docker 環境
 
-1. 更新 apt 套件
 apt update && apt upgrade -y
 
+--
+安裝 Node.js 與 npm
 
-2. 安裝 Node.js 與 npm
-安裝 curl
 apt install -y curl
 
--
-
-安裝 Node
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
-
 
 檢查 node 和 npm 版本
 node -v
 npm -v
 
+--
+安裝常用套件
+
+apt update
+apt install -y git
+
+apt update
+apt install -y nano
+
+apt-get update
+apt-get install -y lsof
+
+安裝專案
+git clone https://github.com/SCLemon/sky_deploy.git
+
+
+---------------------------------------------------------
+PORT 常用語法
+
+sudo lsof -i :80
+
+sudo kill -9 <PID>
+
+---------------------------------------------------------
+Windows 防火牆設定
+
+按 Win + R → 輸入 wf.msc → Enter
+左側選 入站規則 (Inbound Rules)
+右側選 新增規則 (New Rule...)
+選 Port (連接埠) → 下一步
+選 TCP，輸入 特定本地端口：
+
+80, 443
+
+選 允許連線 (Allow the connection) → 下一步
+勾選 Domain / Private / Public（依你的需求，一般勾全部） → 下一步
+給規則取個名字，例如：Docker Web Ports → 完成
+---------------------------------------------------------
+進入路由器設定 PORT Forwarding 和 IP Reservation
+---------------------------------------------------------
