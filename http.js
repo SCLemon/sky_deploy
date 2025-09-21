@@ -28,7 +28,11 @@ app.use((err, req, res, next) => {
 });
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 app.listen(PORT,'0.0.0.0',() => {
+=======
+app.listen(PORT,'0.0.0.0', () => {
+>>>>>>> Stashed changes
 =======
 app.listen(PORT,'0.0.0.0', () => {
 >>>>>>> Stashed changes
