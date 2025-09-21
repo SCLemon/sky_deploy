@@ -27,14 +27,6 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-app.listen(PORT,'0.0.0.0',() => {
-=======
 app.listen(PORT,'0.0.0.0', () => {
->>>>>>> Stashed changes
-=======
-app.listen(PORT,'0.0.0.0', () => {
->>>>>>> Stashed changes
   console.log(`Server is running on  http://127.0.0.1:${PORT}`);
 });
