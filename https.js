@@ -30,6 +30,10 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
+<<<<<<< Updated upstream
 https.createServer(options, app).listen(PORT,'0.0.0.0', () => {
+=======
+https.createServer(options, app).listen(PORT,'0.0.0.0',() => {
+>>>>>>> Stashed changes
   console.log(`HTTPS Server is running on https://127.0.0.1:${PORT}`);
 });
