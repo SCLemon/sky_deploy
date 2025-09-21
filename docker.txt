@@ -23,6 +23,19 @@ docker stop <container_id_or_name>
 
 exit
 
+匯出容器為 .tar 檔
+docker commit <container_id_or_name> sky_image:latest
+docker save -o sky_image.tar sky_image:latest
+
+從 .tar 匯入成新容器
+docker load -i sky_image.tar
+
+以相同的 network 與 volume 運行：
+docker network create sky_net
+docker run -d --name sky_mongo --network sky_net -v D:\sky_docker_mongodb:/data/db mongo:8.0
+docker run -it --name sky --network sky_net -p 80:80 -p 443:443 sky_image:latest
+
+
 ---------------------------------------------------------
 設置主專案 Docker 環境
 
