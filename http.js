@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 4040;
+const PORT = process.env.PORT || 80;
 
 // 配置代理
 app.use('/api/', createProxyMiddleware({

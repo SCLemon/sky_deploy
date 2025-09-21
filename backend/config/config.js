@@ -4,3 +4,10 @@ module.exports = {
   DBPORT: 27017,
   DBNAME: 'SkyAcademy'
 }
+
+// docker network
+// module.exports = {
+//   DBHOST: 'sky_mongo',
+//   DBPORT: 27017,
+//   DBNAME: 'SkyAcademy'
+// }
