@@ -115,10 +115,16 @@ apt update
 apt install -y git nano lsof
 ```
 
-### 安裝專案
+### 下載專案
 
 ```bash
 git clone https://github.com/SCLemon/sky_deploy.git
+```
+
+### 安裝專案
+
+```bash
+bash setup.sh
 ```
 
 ### 啟動與關閉專案
