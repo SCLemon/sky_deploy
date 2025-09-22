@@ -69,6 +69,13 @@ apt-get install -y lsof
 git clone https://github.com/SCLemon/sky_deploy.git
 
 
+
+啟動
+bash start.sh
+
+關閉
+bash stop.sh
+
 ---------------------------------------------------------
 PORT 常用語法
 
