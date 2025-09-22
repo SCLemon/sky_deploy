@@ -10,6 +10,8 @@
 * [PORT 操作常用指令](#port-操作常用指令)
 * [Windows 防火牆設定](#windows-防火牆設定)
 * [路由器設定](#路由器設定)
+* [Generate SSL Certification (HTTPS Environment)](#generate-ssl-certification-https-environment)
+* [Modify SSL Certification Relative Path](#modify-ssl-certification-relative-path)
 
 ---
 
@@ -160,3 +162,30 @@ sudo kill -9 <PID>
 
 * 設置 **Port Forwarding**
 * 設置 **IP Reservation**
+
+---
+
+## Generate SSL Certification (HTTPS Environment)
+
+```bash
+// 獲取免費 Domain Name
+https://my.noip.com/
+
+// 安裝 Let's Encrypt
+sudo apt update
+sudo apt install certbot
+
+// 手動獲取憑證
+sudo certbot certonly --standalone
+
+// 自動更新憑證
+sudo certbot renew --dry-run
+```
+
+---
+
+## Modify SSL Certification Relative Path
+
+```bash
+You should modify path for these files in sslPath.js
+```
