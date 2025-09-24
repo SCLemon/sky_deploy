@@ -33,6 +33,7 @@ async function createTeacher(){
         userImgUrl:{
             url:'img/user.png',
         },
+        level:10,
         createTime: format(new Date(),'yyyy-MM-dd HH:mm:ss'),
         type:type
     });

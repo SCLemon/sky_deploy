@@ -9,6 +9,10 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer')
 const path = require('path');
 
+const levelTitle = [
+    '新手會員','普通會員','進階會員','高級會員','鉑金會員',
+    '鑽石會員','星耀會員','頂級會員','版主','頂級版主'
+]
 
 // 檢查身份
 const authMiddleware = async (req, res, next) => {
@@ -191,9 +195,14 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
                     name: user.name,
                     phone: user.detail.phoneNumber,
                     address: user.detail.address,
+                    level: {
+                        level: user.level,
+                        levelTitle: levelTitle[user.level - 1]
+                    },
                     mailAddress: user.detail.mailAddress,
                     userImgUrl: user.detail.photoStickers.url
                 },
+                levelTitleArray:levelTitle,
                 message:'使用者資料獲取成功'
             })
         }
@@ -216,7 +225,7 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
 
 router.post('/api/userInfo/modifyUserInfo/:idx',upload.fields([{ name: 'attachments', maxCount: 1}]), authMiddleware, checkUsageMemory,async (req, res) => {
     const idx = req.params.idx;
-    const { password, name, phone, address, mailAddress} = JSON.parse(req.body.userInfo);
+    const { password, name, phone, address, level, mailAddress} = JSON.parse(req.body.userInfo);
 
     try{
         if(req.user.type  == 'teacher'){
@@ -255,6 +264,7 @@ router.post('/api/userInfo/modifyUserInfo/:idx',upload.fields([{ name: 'attachme
                 const updateData = {
                     name: name,
                     password: password,
+                    level: level.level,
                     "detail.phoneNumber": phone,
                     "detail.address": address,
                     "detail.mailAddress": mailAddress

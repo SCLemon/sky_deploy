@@ -7,6 +7,11 @@ const {format} = require('date-fns')
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs')
 
+const levelTitle = [
+    '新手會員','普通會員','進階會員','高級會員','鉑金會員',
+    '鑽石會員','星耀會員','頂級會員','版主','頂級版主'
+]
+
 // 檢查身份
 const authMiddleware = async (req, res, next) => {
     const token = req.headers['x-user-token']
@@ -238,7 +243,11 @@ router.get('/api/infoPage/getStudent',authMiddleware, async (req, res) => {
                     createTime:obj.createTime,
                     account:obj.account,
                     lastOnline:obj.lastOnline,
-                    loginIP:obj.loginIP,
+                    fingerprint:obj.fingerprint,
+                    level: {
+                        level: obj.level,
+                        levelTitle: levelTitle[obj.level - 1]
+                    },
                     name:obj.name,
                     status:obj.status
                 }

@@ -51,7 +51,7 @@ const postSchema = new mongoose.Schema({
                 {
                     idx: String,
                     createTime: String,
-                    ip:String,
+                    fingerprint:String,
                     message:String
                 }
             ],

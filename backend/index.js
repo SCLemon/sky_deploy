@@ -14,13 +14,16 @@ const rateLimit = require('express-rate-limit');
 // 不受限速
 const whitelistRoutes = [
     '/api/learn/getCourseBanner',
-    '/api/post/image'
+    '/api/post/image',
 ];
 
 const limiter = rateLimit({
     windowMs: 60 * 1000, // 1 分鐘
     max: 120,
-    message: 'Too many requests from this IP, please try again after a minute.',
+    message: 'Too many requests from this account, please try again after a minute.',
+    keyGenerator: (req, res) => {
+        return req.headers['x-user-token'] || req.headers['x-user-fingerprint'];
+    },
     skip: (req, res) => {
         return whitelistRoutes.some(route => req.path.startsWith(route));
     },
@@ -32,7 +35,6 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use((req, res, next) => {
-  console.log('Visitor IP:', req.ip);
   next();
 });
 
