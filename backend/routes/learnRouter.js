@@ -84,7 +84,6 @@ router.get('/api/learn/getCourse', authMiddleware, async (req, res) => {
         else if (req.user.type === 'student') {
             courses = await courseModel.find({
                 group: req.user.group,
-                studentList: req.user.idx,
                 status: true,
             });
         }
@@ -120,21 +119,38 @@ router.get('/api/learn/getCourse', authMiddleware, async (req, res) => {
                 }
                 // 若無 banner
                 if(bannerImg.length == 0) bannerImg.push({name:'default_course_banner',url:'img/default_course_banner.jpg'})
+                
+                
+                let idx,lock;
+                if(course.studentList.includes(req.user.idx) || req.user.type == 'teacher'){
+                    idx = course.idx
+                    lock = false
+                }
+                else{
+                    idx = null
+                    lock = true
+                }
                 return {
-                    idx: course.idx,
+                    idx: idx,
                     createTime: course.createTime,
                     courseId: course.courseId,
                     courseName: course.courseName,
                     lecturer: course.lecturer,
                     status: course.status,
                     bannerImg: bannerImg,
+                    lock:lock,
                 };
             })
         );
 
+        reorder_courses  = [
+            ...courses.filter(c => !c.lock),
+            ...courses.filter(c => c.lock)
+        ];
+
         return res.send({
             type: 'success',
-            courses: courses,
+            courses: reorder_courses,
             message: '課程資料查詢成功。',
         });
     } catch (e) {

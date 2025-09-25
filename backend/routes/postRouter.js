@@ -329,6 +329,7 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                     if (!user) continue;
                     message.push({
                         name: user.name,
+                        level: user.level,
                         userImgUrl: user.userImgUrl.url,
                         createTime: i.createTime,
                         message: i.message
@@ -422,6 +423,7 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
                     if (!user) continue;
                     message.push({
                         name: user.name,
+                        level: user.level,
                         userImgUrl: user.userImgUrl.url,
                         createTime: i.createTime,
                         message: i.message
@@ -547,6 +549,7 @@ router.post('/api/post/message', authMiddleware, async (req, res) => {
             type: 'success',
             data: {
                 name: req.user.name,
+                level: req.user.level,
                 createTime: createTime,
                 userImgUrl: req.user.userImgUrl.url,
                 message: message
