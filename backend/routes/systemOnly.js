@@ -55,11 +55,11 @@ async function createDatabase(){
     } 
     else if (process.platform === 'darwin') {
         // macOS → 外接硬碟通常掛載在 /Volumes
-        baseDir = '/Volumes/D/sky_database';
+        baseDir = '/Volumes/sky_database';
     } 
     else {
         // Linux → 掛載在 /mnt 或 /media
-        baseDir = '/mnt/d/sky_database';
+        baseDir = '/mnt/sky_database';
     }
 
     // 最終資料庫路徑

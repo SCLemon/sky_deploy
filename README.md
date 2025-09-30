@@ -28,7 +28,7 @@ docker network create sky_net
 ### Ubuntu 主容器
 
 ```bash
-docker run -it --name sky --network sky_net -p 80:80 -p 443:443 ubuntu:22.04 bash
+docker run -it --name sky --network sky_net -p 80:80 -p 443:443 -v D:\sky_docker_localDatabase:/mnt/sky_database ubuntu:22.04 bash
 ```
 
 ### MongoDB 容器
@@ -83,7 +83,7 @@ docker load -i sky_image.tar
 ```bash
 docker network create sky_net
 docker run -d --name sky_mongo --network sky_net -v D:\sky_docker_mongodb:/data/db mongo:8.0
-docker run -it --name sky --network sky_net -p 80:80 -p 443:443 sky_image:latest
+docker run -it --name sky --network sky_net -p 80:80 -p 443:443 -v D:\sky_docker_localDatabase:/mnt/sky_database sky_image:latest
 ```
 
 ---
