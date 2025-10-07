@@ -193,6 +193,7 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
                     account: user.account,
                     password: user.password,
                     name: user.name,
+                    token: user.token,
                     phone: user.detail.phoneNumber,
                     address: user.detail.address,
                     level: {

@@ -325,7 +325,7 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                 // 留言
                 let message = [];
                 for (const i of post.meta.message) {
-                    const user = await userModel.findOne({ idx: i.idx });
+                    const user = await userModel.findOne({ idx: i.idx, status:true });
                     if (!user) continue;
                     message.push({
                         name: user.name,
@@ -460,6 +460,9 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
 // 按讚
 router.get('/api/post/toggleLikePost/:idx', authMiddleware, async (req, res) => {
     try {
+        if(req.user.account == 'Visitor'){
+            return res.send({ type: 'error', message: '訪客帳號不開放按讚功能。' });
+        }
         const postIdx = req.params.idx;
     
         const post = await postModel.findOne({
@@ -511,6 +514,9 @@ router.get('/api/post/toggleLikePost/:idx', authMiddleware, async (req, res) => 
 // 留言
 router.post('/api/post/message', authMiddleware, async (req, res) => {
     try {
+        if(req.user.account == 'Visitor'){
+            return res.send({ type: 'error', message: '訪客帳號不開放留言功能。' });
+        }
         const postIdx = req.body.postIdx;
         const message = req.body.message;
         const fingerprint = req.headers['x-user-fingerprint'];
