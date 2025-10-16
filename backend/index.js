@@ -72,6 +72,9 @@ app.use(learnRouter);
 const userInfoRouter = require('./routes/userInfoRouter');
 app.use(userInfoRouter);
 
+const studyRecordRouter = require('./routes/studyRecordRouter');
+app.use(studyRecordRouter);
+
 app.listen(3007,()=>{
     console.log('server is running on port 3007')
 })
