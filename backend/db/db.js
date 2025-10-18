@@ -23,4 +23,15 @@ function disconnectFromDatabase() {
 function getDb(){ // 返回資料庫實例
   return mongoose.connection.db;
 }
-module.exports = { connectToDatabase, disconnectFromDatabase,getDb};
+
+// 刪除 Collection
+async function dropCollection(model){
+  try{
+    model.collection.drop();
+  }
+  catch(e){
+    console.log(e)
+  }
+}
+
+module.exports = { connectToDatabase, disconnectFromDatabase,getDb ,dropCollection};
