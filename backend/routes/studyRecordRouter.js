@@ -4,7 +4,7 @@ const router = express.Router();
 const studyRecordModel = require('../models/studyRecordModel');
 const userModel = require('../models/userModel')
 const { v4: uuidv4 } = require('uuid');
-const { format, differenceInMinutes, parseISO, subDays, isWithinInterval, startOfDay, endOfDay, differenceInMilliseconds} = require('date-fns');
+const { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay, differenceInMilliseconds} = require('date-fns');
 // 檢查身份
 const authMiddleware = async (req, res, next) => {
     const token = req.headers['x-user-token']
@@ -121,6 +121,7 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
             if (!record) {
                 record = new studyRecordModel({
                     group: req.user.group,
+                    creator: req.headers['x-user-token'],
                     detail: [],
                 });
             }
@@ -157,13 +158,13 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
 
         try {
 
-            const record = await studyRecordModel.findOneAndUpdate(
+            const record = await studyRecordModel.updateOne(
                 { group: req.user.group },
                 { $pull: { detail: { idx: req.params.idx } } },
                 { new: true }
             );
             
-            if (!record) {
+            if (record.modifiedCount === 0) {
                 return res.send({ type: 'error', message: '計畫刪除失敗。'});
             }
 
@@ -190,7 +191,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
 
         try {
 
-            const record = await studyRecordModel.findOneAndUpdate(
+            const record = await studyRecordModel.updateOne(
                 { group: req.user.group },
                 {
                     $set: {
@@ -204,7 +205,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                 }
             );
             
-            if (!record) {
+            if (record.modifiedCount === 0) {
                 return res.send({ type: 'error', message: '計畫變更失敗。'});
             }
 
@@ -225,7 +226,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
     }
 });
 
-// 記錄時間
+// 暫停 or 完成計畫
 router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) => {
     if(req.user.type == 'teacher'){
 
@@ -235,7 +236,7 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
             let diff = differenceInMilliseconds(end, start)/1000
             if (isNaN(diff) || diff < 0) diff = 0; // 防呆
 
-            const record = await studyRecordModel.findOneAndUpdate(
+            const record = await studyRecordModel.updateOne(
                 { group: req.user.group },
                 {
                     $inc: {
@@ -246,16 +247,23 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
                     }
                 },
                 {
-                    arrayFilters: [{ 'elem.idx': req.params.idx }], // 選擇特定元素
+                    arrayFilters: [{ 'elem.idx': req.params.idx ,'elem.status': { $ne: '已完成' }}], // 選擇特定元素
                     new: true
                 }
             );
-            
-            if (!record) {
+
+            if (record.modifiedCount === 0) {
                 return res.send({ type: 'error', message: '計畫紀錄失敗。'});
             }
 
-            return res.send({ type: 'success', message: '計畫紀錄成功。'});
+            // 變更狀態
+            let updateStatusResponse = {}
+            if(req.body.finish) updateStatusResponse =  await updateStatus(req,'已完成');
+            else updateStatusResponse = await updateStatus(req,'尚未完成');
+
+            if(updateStatusResponse) res.send(updateStatusResponse)
+            else return res.send({ type: 'success', message: '計畫紀錄成功。'});
+
         } catch (e) {
             console.log(e);
             return res.send({
@@ -272,5 +280,30 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
     }
 });
 
+// 開始進行計畫 --> 將該計畫狀態變更為 進行中
+router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, res) => {
+    await updateStatus(req, '進行中');
+    res.send({type: 'success', message: '狀態變更為進行中。'})
+})
+
+
+// 變更計畫狀態 -- 已完成, 執行中, 尚未完成
+async function updateStatus(req, status){
+    const record = await studyRecordModel.updateOne(
+        { group: req.user.group },
+        {
+            $set: {
+                'detail.$[elem].status': status,
+            }
+        },
+        {
+            arrayFilters: [{ 'elem.idx': req.params.idx }],
+            new: true
+        }
+    );
+    if (record.matchedCount === 0) {
+        return { type: 'error', message: '狀態變更失敗。'};
+    }
+}
 
 module.exports = router;

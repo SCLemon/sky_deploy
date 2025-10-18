@@ -6,6 +6,12 @@ const studyRecordSchema = new mongoose.Schema({
         required:true,
         trim: true,
     },
+    creator:{
+        type: String,
+        required:true,
+        unique: true,
+        trim: true,
+    },
     detail:[
         {
             idx:{
@@ -15,6 +21,10 @@ const studyRecordSchema = new mongoose.Schema({
                 trim: true,
             },
             date:String,
+            status:{
+                type:String,
+                default: '尚未完成'
+            },
             content:{
                 type: String,
                 trim: true,
