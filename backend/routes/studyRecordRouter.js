@@ -102,8 +102,8 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
     if(req.user.type == 'teacher'){
 
         
-        if(req.body.date.trim() =='' || req.body.content.trim() ==''){
-            return res.send({ type: 'error',message: '資料不可為空。'});
+        if(req.body.date.trim() =='' || req.body.content.trim() =='' || req.body.expectTime < 15){
+            return res.send({ type: 'error',message: '資料格式錯誤。'});
         }
 
         // 檢查日期格式以及自動轉換
@@ -128,6 +128,7 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
             record.detail.push({
                 idx:uuid,
                 date: date,
+                expectTime: req.body.expectTime ?? 90,
                 content: req.body.content
             })
             await record.save();
@@ -160,8 +161,7 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
 
             const record = await studyRecordModel.updateOne(
                 { group: req.user.group },
-                { $pull: { detail: { idx: req.params.idx } } },
-                { new: true }
+                { $pull: { detail: { idx: req.params.idx } } }
             );
             
             if (record.modifiedCount === 0) {
@@ -200,11 +200,10 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                     }
                 },
                 {
-                    arrayFilters: [{ 'elem.idx': req.params.idx }], // 選擇特定元素
-                    new: true
+                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $in: ["尚未完成", "進行中"] }}]
                 }
             );
-            
+
             if (record.modifiedCount === 0) {
                 return res.send({ type: 'error', message: '計畫變更失敗。'});
             }
@@ -233,7 +232,7 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
         try {
             const start = parseISO(req.body.startTime);
             const end = parseISO(req.body.stopTime);
-            let diff = differenceInMilliseconds(end, start)/1000
+            let diff = differenceInMilliseconds(end, start)/1000 // 秒
             if (isNaN(diff) || diff < 0) diff = 0; // 防呆
 
             const record = await studyRecordModel.updateOne(
@@ -247,8 +246,7 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
                     }
                 },
                 {
-                    arrayFilters: [{ 'elem.idx': req.params.idx ,'elem.status': { $ne: '已完成' }}], // 選擇特定元素
-                    new: true
+                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $in: ["尚未完成", "進行中"] }}]
                 }
             );
 
@@ -258,7 +256,19 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
 
             // 變更狀態
             let updateStatusResponse = {}
-            if(req.body.finish) updateStatusResponse =  await updateStatus(req,'已完成');
+            if(req.body.finish){
+                const updatedDoc = await studyRecordModel.findOne(
+                    { group: req.user.group, 'detail.idx': req.params.idx },
+                    { 'detail.$': 1 } 
+                );
+                const target = updatedDoc.detail[0];
+
+                // 閾值為 +- 10 min
+                const status = (target.statistics.total/60) > target.expectTime + 10 ? '延遲完成' 
+                                :(target.statistics.total/60) < target.expectTime - 10 ? '提前完成':'已完成';
+
+                updateStatusResponse = await updateStatus(req, status);
+            }
             else updateStatusResponse = await updateStatus(req,'尚未完成');
 
             if(updateStatusResponse) res.send(updateStatusResponse)
@@ -298,7 +308,6 @@ async function updateStatus(req, status){
         },
         {
             arrayFilters: [{ 'elem.idx': req.params.idx }],
-            new: true
         }
     );
     if (record.matchedCount === 0) {

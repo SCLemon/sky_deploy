@@ -353,13 +353,14 @@ router.put('/api/infoPage/stopCourse/:idx',authMiddleware,async(req,res)=>{
 
 // 指派課程
 router.post('/api/infoPage/setStudentToCourse',authMiddleware,async(req,res)=>{
-    let {idx, courseId, lecturer, studentList} = req.body;
+    let {idx, courseId, courseName, lecturer, studentList} = req.body;
 
     try {
         if (req.user.type === 'teacher') {
             const setCourse = await courseModel.findOneAndUpdate({idx:idx, group:req.user.group},{
                 $set: { 
                     courseId:courseId,
+                    courseName: courseName,
                     lecturer:lecturer,
                     studentList: studentList 
                 }

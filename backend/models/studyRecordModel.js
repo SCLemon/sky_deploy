@@ -21,6 +21,10 @@ const studyRecordSchema = new mongoose.Schema({
                 trim: true,
             },
             date:String,
+            expectTime:{
+                type: Number,
+                default: 90,
+            },
             status:{
                 type:String,
                 default: '尚未完成'
