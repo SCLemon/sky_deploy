@@ -23,6 +23,10 @@ const courseSchema = new mongoose.Schema({
         type: String,
         default: true,
     },
+    courseType:{
+        type: String,
+        default: '其他類別'
+    },
     lecturer:{
         type: String,
         default: true,

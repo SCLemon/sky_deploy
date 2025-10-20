@@ -129,6 +129,7 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
                 idx:uuid,
                 date: date,
                 expectTime: req.body.expectTime ?? 90,
+                projectType: req.body.projectType ?? '其他',
                 content: req.body.content
             })
             await record.save();
@@ -197,6 +198,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                     $set: {
                         'detail.$[elem].date': req.body.date,
                         'detail.$[elem].content': req.body.content,
+                        'detail.$[elem].projectType': req.body.projectType,
                     }
                 },
                 {
@@ -204,7 +206,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                 }
             );
 
-            if (record.modifiedCount === 0) {
+            if (record.matchedCount === 0) {
                 return res.send({ type: 'error', message: '計畫變更失敗。'});
             }
 

@@ -109,7 +109,7 @@ const checkClassNum = async(req,res,next)=>{
 const upload = multer();
 router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', maxCount: 2}]),authMiddleware,checkClassNum,checkUsageMemory, async (req, res) => {
     
-    const {courseId,courseName,lecturer} = req.body;
+    const {courseId,courseName, courseType,lecturer} = req.body;
 
     const groupInfo = await groupModel.findOne({group: req.user.group});
     if(!groupInfo){
@@ -137,6 +137,7 @@ router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', m
                     folderPath:folderPath,
                     courseId,
                     courseName,
+                    courseType,
                     lecturer,
                     group: req.user.group,
                     createTime: format(new Date(),'yyyy-MM-dd HH:mm:ss'),
@@ -194,7 +195,7 @@ router.get('/api/infoPage/getCourse',authMiddleware, async (req, res) => {
 
         if (req.user.type === 'teacher') {
 
-            let courses = await courseModel.find({ group: req.user.group });
+            let courses = (await courseModel.find({ group: req.user.group })).reverse();
 
             if(courses.length == 0) {
                 return res.send({
@@ -211,6 +212,7 @@ router.get('/api/infoPage/getCourse',authMiddleware, async (req, res) => {
                     courseId:obj.courseId,
                     courseName:obj.courseName,
                     courseTime:obj.courseTime,
+                    courseType: obj.courseType,
                     lecturer:obj.lecturer,
                     status:obj.status,
                     studentList:obj.studentList
@@ -353,7 +355,7 @@ router.put('/api/infoPage/stopCourse/:idx',authMiddleware,async(req,res)=>{
 
 // 指派課程
 router.post('/api/infoPage/setStudentToCourse',authMiddleware,async(req,res)=>{
-    let {idx, courseId, courseName, lecturer, studentList} = req.body;
+    let {idx, courseId, courseName, courseType, lecturer, studentList} = req.body;
 
     try {
         if (req.user.type === 'teacher') {
@@ -361,6 +363,7 @@ router.post('/api/infoPage/setStudentToCourse',authMiddleware,async(req,res)=>{
                 $set: { 
                     courseId:courseId,
                     courseName: courseName,
+                    courseType: courseType,
                     lecturer:lecturer,
                     studentList: studentList 
                 }

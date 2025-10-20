@@ -275,14 +275,15 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
     const page = req.query.page || 1;
     const pageSize = 5;
     const offset = (page - 1) * pageSize;
+    const q = req.query.q || ''
     try {
         let posts = [];
         
         if (req.user.type === 'teacher') {
-            posts = (await postModel.find({ group: req.user.group }).sort({ _id: -1 }).skip(offset).limit(pageSize)).reverse();
+            posts = (await postModel.find({ group: req.user.group, content: { $regex: q, $options: 'i' }  }).sort({ _id: -1 }).skip(offset).limit(pageSize)).reverse();
         } 
         else if (req.user.type === 'student') {
-            posts = (await postModel.find({ group: req.user.group, status: true }).sort({ _id: -1 }).skip(offset).limit(pageSize)).reverse();
+            posts = (await postModel.find({ group: req.user.group, content: { $regex: q, $options: 'i' }, status: true }).sort({ _id: -1 }).skip(offset).limit(pageSize)).reverse();
         }
         else {
             return res.send({
