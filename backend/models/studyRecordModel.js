@@ -12,6 +12,9 @@ const studyRecordSchema = new mongoose.Schema({
         unique: true,
         trim: true,
     },
+    // 暫存前一項進行中的任務以避免資料遺失
+    tempForPreviousTask: Object,
+    
     detail:[
         {
             idx:{

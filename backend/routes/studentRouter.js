@@ -49,6 +49,7 @@ router.get('/api/infoPage/getStudentCourse',authMiddleware, async (req, res) => 
                     createTime:obj.createTime,
                     courseId:obj.courseId,
                     courseName:obj.courseName,
+                    courseType: obj.courseType,
                     lecturer:obj.lecturer,
                     status:obj.status,
                 }

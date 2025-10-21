@@ -49,14 +49,23 @@ const checkUsageMemory = async(req,res,next)=>{
         if (!group) {
             return res.send({
                 type: 'error',
-                message: '課程群組不存在。',
+                message: '用戶群組不存在。',
             });
         }
         const limitMemory = group.limit.memory;
         const databaseUrl = group.databaseUrl;
-        const size = getFolderSize(databaseUrl) / (1024*1024);
+        
+        // 1. 目前群組已用空間 (MB)
+        const usedSizeMB = getFolderSize(databaseUrl) / (1024 * 1024);
 
-        if (size >= limitMemory) {
+        // 2. 本次上傳檔案的大小 (MB)
+        let uploadSizeMB = 0;
+        if (req.files && req.files.attachments && req.files.attachments.length > 0) {
+            uploadSizeMB = req.files.attachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024);
+        }
+
+        const totalAfterUpload = usedSizeMB + uploadSizeMB;
+        if (totalAfterUpload > limitMemory) {
             return res.send({
                 type: 'error',
                 message: `空間用量已超過限制 ${limitMemory} MB，如需調額請洽客服人員。`,
@@ -132,12 +141,13 @@ router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', m
                 const bannerFolderPath = `${folderPath}/banner`
 
                 // 先寫入資料庫
+                console.log(courseType)
                 const newCourse = new courseModel({
                     idx:idx,
                     folderPath:folderPath,
                     courseId,
                     courseName,
-                    courseType,
+                    courseType: (courseType && courseType.trim() != '') ? courseType : '其他類別',
                     lecturer,
                     group: req.user.group,
                     createTime: format(new Date(),'yyyy-MM-dd HH:mm:ss'),

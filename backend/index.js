@@ -19,7 +19,7 @@ const whitelistRoutes = [
 
 const limiter = rateLimit({
     windowMs: 60 * 1000, // 1 分鐘
-    max: 120,
+    max: 200,
     message: 'Too many requests from this account, please try again after a minute.',
     keyGenerator: (req, res) => {
         return req.headers['x-user-token'] || req.headers['x-user-fingerprint'];

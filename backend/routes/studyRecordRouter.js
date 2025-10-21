@@ -32,6 +32,7 @@ router.get('/api/studyRecord/getRecord',authMiddleware, async (req, res) => {
         let send = record? record.detail.reverse(): [];
         return res.send({
             type: 'success',
+            executing: record.tempForPreviousTask,
             record: send,
             message: '資料查詢成功。',
         });
@@ -159,10 +160,15 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
     if(req.user.type == 'teacher'){
 
         try {
-
+            // 不可刪除正在進行的計畫
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group },
-                { $pull: { detail: { idx: req.params.idx } } }
+                { group: req.user.group, 'tempForPreviousTask.idx': {$ne: req.params.idx} },
+                { 
+                    $set:{
+                        tempForPreviousTask: null
+                    },
+                    $pull: { detail: { idx: req.params.idx } } 
+                }
             );
             
             if (record.modifiedCount === 0) {
@@ -232,23 +238,32 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
     if(req.user.type == 'teacher'){
 
         try {
-            const start = parseISO(req.body.startTime);
+
+            // 查找是否正在進行計畫 --> 若為 null 則返回 warning
+            const r = await studyRecordModel.findOne({group: req.user.group, tempForPreviousTask: { $ne: null }})
+            if(!r) return res.send({type: 'warning', message:'請確認是否已從其他裝置執行紀錄。'})
+
+
+            const start = parseISO(r.tempForPreviousTask.startTime);
             const end = parseISO(req.body.stopTime);
             let diff = differenceInMilliseconds(end, start)/1000 // 秒
             if (isNaN(diff) || diff < 0) diff = 0; // 防呆
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group },
+                { group: req.user.group, 'tempForPreviousTask.idx': req.params.idx},
                 {
+                    $set:{
+                        tempForPreviousTask: null
+                    },
                     $inc: {
                         'detail.$[elem].statistics.total': diff
                     },
                     $push:{
-                        'detail.$[elem].statistics.record':{start: req.body.startTime, end: req.body.stopTime}
+                        'detail.$[elem].statistics.record':{start: r.tempForPreviousTask.startTime, end: req.body.stopTime}
                     }
                 },
                 {
-                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $in: ["尚未完成", "進行中"] }}]
+                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $in: ["進行中"] }}]
                 }
             );
 
@@ -294,8 +309,23 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
 
 // 開始進行計畫 --> 將該計畫狀態變更為 進行中
 router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, res) => {
+    const record = await studyRecordModel.updateOne(
+        { group: req.user.group, tempForPreviousTask: null },
+        {
+            $set: {
+                tempForPreviousTask: {
+                    idx: req.params.idx,
+                    startTime: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
+                }
+            },
+        },
+    );
+
+    if(record.matchedCount == 0){
+        return res.send({type: 'error', message: '紀錄暫存失敗。'})
+    }
     await updateStatus(req, '進行中');
-    res.send({type: 'success', message: '狀態變更為進行中。'})
+    return res.send({type: 'success', message: '狀態變更為進行中。'})
 })
 
 
