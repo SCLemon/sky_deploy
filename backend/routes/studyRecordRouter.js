@@ -199,7 +199,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
         try {
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group },
+                { group: req.user.group, detail: {$elemMatch: { idx: req.params.idx, status: {$in: ["尚未完成", "進行中"]} } }}, // 完成計畫的情況下不可以修改計畫。
                 {
                     $set: {
                         'detail.$[elem].date': req.body.date,
@@ -234,12 +234,12 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
 });
 
 // 暫停 or 完成計畫
-router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) => {
+router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req, res) => {
     if(req.user.type == 'teacher'){
 
         try {
 
-            // 查找是否正在進行計畫 --> 若為 null 則返回 warning
+            // 查找是否正在進行計畫 --> 若為 null 則返回錯誤訊息。
             const r = await studyRecordModel.findOne({group: req.user.group, tempForPreviousTask: { $ne: null }})
             if(!r) return res.send({type: 'warning', message:'請確認是否已從其他裝置執行紀錄。'})
 
@@ -250,7 +250,7 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
             if (isNaN(diff) || diff < 0) diff = 0; // 防呆
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group, 'tempForPreviousTask.idx': req.params.idx},
+                { group: req.user.group, 'tempForPreviousTask.taskId': req.params.taskId}, // 前端傳來的 taskId 必須和正在執行的任務相符才更新，以避免重複執行紀錄。
                 {
                     $set:{
                         tempForPreviousTask: null
@@ -309,12 +309,14 @@ router.put('/api/studyRecord/recordTime/:idx',authMiddleware, async (req, res) =
 
 // 開始進行計畫 --> 將該計畫狀態變更為 進行中
 router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, res) => {
+
     const record = await studyRecordModel.updateOne(
-        { group: req.user.group, tempForPreviousTask: null },
+        { group: req.user.group, tempForPreviousTask: null, detail: {$elemMatch: { idx: req.params.idx, status: "尚未完成" } }}, // 只有在尚未完成的情況下，能夠執行任務。
         {
             $set: {
                 tempForPreviousTask: {
                     idx: req.params.idx,
+                    taskId : uuidv4(),
                     startTime: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
                 }
             },
@@ -322,7 +324,7 @@ router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, r
     );
 
     if(record.matchedCount == 0){
-        return res.send({type: 'error', message: '紀錄暫存失敗。'})
+        return res.send({type: 'error', message: '紀錄執行失敗。'})
     }
     await updateStatus(req, '進行中');
     return res.send({type: 'success', message: '狀態變更為進行中。'})
