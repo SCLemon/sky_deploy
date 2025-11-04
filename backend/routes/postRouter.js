@@ -376,9 +376,7 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
 
 // 獲取分享貼文
 router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
-    const page = req.query.page || 1;
-    const pageSize = 5;
-    const offset = (page - 1) * pageSize;
+
     try {
         let posts = [];
         
@@ -392,7 +390,7 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
                 return res.send({
                     type: 'success',
                     posts:[],
-                    message: '用戶資料查詢成功。',
+                    message: '貼文資料查詢成功。',
                 });
             }
         }
@@ -467,6 +465,7 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
         });
     }
 });
+
 // 按讚
 router.get('/api/post/toggleLikePost/:idx', authMiddleware, async (req, res) => {
     try {

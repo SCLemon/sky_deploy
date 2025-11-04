@@ -288,17 +288,27 @@ router.post('/api/learn/modifyMaterial',upload.fields([{ name: 'attachments', ma
             try{
 
                 const updatedCourse = await courseModel.findOne({ idx: idx, group: req.user.group });
-                console.log(updatedCourse)
                 const updatedMaterial = updatedCourse.meta.find(item => item.idx === materialIdx);
             
-                const filePath = updatedMaterial.attachmentUrl.original
-                let file = req.files['attachments'][0]
-                if (fs.existsSync(filePath))fs.unlinkSync(filePath);
+                // 若有新文件才覆蓋舊文件
+                let file = req.files['attachments'] ? req.files['attachments'][0]: null;
+                if(file){
+                    const filePath = updatedMaterial.attachmentUrl.original
+                    if (fs.existsSync(filePath))fs.unlinkSync(filePath);
+                    fs.writeFileSync(filePath, file.buffer)
+                }
 
-                fs.writeFileSync(filePath, file.buffer)
+                // 返回更新項
+                const output = {
+                    attachmentUrl: updatedMaterial.attachmentUrl.url,
+                    idx: updatedMaterial.idx,
+                    title: updatedMaterial.title,
+                    _id: updatedMaterial._id
+                }
 
                 return res.send({
                     type:'success',
+                    material : output,
                     message:'文件更新成功。'
                 });
 
@@ -310,6 +320,56 @@ router.post('/api/learn/modifyMaterial',upload.fields([{ name: 'attachments', ma
                     message:'文件更新失敗。'
                 });
             }
+        } 
+        else {
+            return res.send({
+                type: 'error',
+                message: '您沒有權限更新文件資料。',
+            });
+        }
+    } catch (e) {
+        console.log(e);
+        return res.send({
+            type: 'error',
+            message: '伺服器錯誤，請洽客服人員協助。',
+        });
+    }
+});
+
+// 教材順序更新
+router.put('/api/learn/modifyIndex',authMiddleware, async (req, res) => {
+    
+
+    const {idx, method, materialIdx} = req.body;
+    
+    try {
+        if (req.user.type === 'teacher') {
+            const course = await courseModel.findOne({ idx, group: req.user.group });
+            if (!course) return res.send({ type:'error', message: '專欄不存在' });
+            
+            let meta = course.meta;
+            const index = meta.findIndex(m => m.idx === materialIdx);
+            if (index === -1) return res.send({ type:'error', message: '找不到指定的專欄資料' });
+
+            if (method === 'up' && index > 0) {
+                // 往上移一位
+                [meta[index - 1], meta[index]] = [meta[index], meta[index - 1]];
+            } 
+            else if (method === 'down' && index < meta.length - 1) {
+                // 往下移一位
+                [meta[index + 1], meta[index]] = [meta[index], meta[index + 1]];
+            }
+
+            await course.save();
+
+            const simplifiedMaterial = course.meta.map(material => {
+                return {
+                    ...material._doc,
+                    attachmentUrl:material.attachmentUrl.url
+                };
+            });
+
+            res.send({type:'success', message:'專欄序列更新成功。', materials: simplifiedMaterial})
         } 
         else {
             return res.send({
