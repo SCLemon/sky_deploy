@@ -494,6 +494,10 @@ router.get('/api/learn/getMaterial/:idx/:materialIdx',authMiddleware, async (req
 
         const filePath = material.attachmentUrl.original;
         if (!fs.existsSync(filePath)) return res.send({ type: 'error',message: '專欄資源不存在（文件不存在）。'});
+        
+        // 擷取進度條
+        const stat = fs.statSync(filePath);
+        res.setHeader('Content-Length', stat.size);
 
         res.setHeader('Content-Type', 'application/pdf');
 
