@@ -4,11 +4,10 @@ const router = express.Router();
 const userModel = require('../models/userModel');
 const groupModel = require('../models/groupModel')
 const postModel = require('../models/postModel')
-const courseModel = require('../models/courseModel')
 const fs = require('fs');
 const {format} = require('date-fns')
 const { v4: uuidv4 } = require('uuid');
-const multer = require('multer')
+const upload = require('../config/multer.config.js')
 const path = require('path')
 
 // 檢查身份
@@ -86,7 +85,6 @@ const checkUsageMemory = async(req,res,next)=>{
 
 
 // 創建貼文
-const upload = multer();
 router.post('/api/post/create',upload.fields([{ name: 'attachments'}]),authMiddleware,checkUsageMemory, async (req, res) => {
     
     const {content} = req.body;
@@ -139,7 +137,7 @@ router.post('/api/post/create',upload.fields([{ name: 'attachments'}]),authMiddl
 
                 attachments.forEach((file) => {
                     const filePath = `${folderPath}/${file.originalname}`
-                    fs.writeFileSync(filePath, file.buffer);
+                    fs.renameSync(file.path, filePath);
                 });
 
                 return res.send({

@@ -5,6 +5,9 @@ const studyRecordModel = require('../models/studyRecordModel');
 const userModel = require('../models/userModel')
 const { v4: uuidv4 } = require('uuid');
 const { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay, differenceInMilliseconds} = require('date-fns');
+const upload = require('../config/multer.config.js')
+const fs = require('fs')
+
 // 檢查身份
 const authMiddleware = async (req, res, next) => {
     const token = req.headers['x-user-token']
@@ -32,7 +35,7 @@ router.get('/api/studyRecord/getRecord',authMiddleware, async (req, res) => {
         let send = record? record.detail.reverse(): [];
         return res.send({
             type: 'success',
-            executing: record.tempForPreviousTask,
+            executing: record?.tempForPreviousTask ?? null,
             record: send,
             message: '資料查詢成功。',
         });
@@ -118,7 +121,7 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
 
         try {
 
-            let record = await studyRecordModel.findOneAndUpdate({ group: req.user.group});
+            let record = await studyRecordModel.findOneAndUpdate({ group: req.user.group, creator: req.user.token});
             if (!record) {
                 record = new studyRecordModel({
                     group: req.user.group,
@@ -162,7 +165,7 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
         try {
             // 不可刪除正在進行的計畫
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group, 'tempForPreviousTask.idx': {$ne: req.params.idx} },
+                { group: req.user.group, creator: req.user.token, 'tempForPreviousTask.idx': {$ne: req.params.idx} },
                 { 
                     $set:{
                         tempForPreviousTask: null
@@ -199,7 +202,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
         try {
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group, detail: {$elemMatch: { idx: req.params.idx, status: {$in: ["尚未完成", "進行中"]} } }}, // 完成計畫的情況下不可以修改計畫。
+                { group: req.user.group, creator: req.user.token, detail: {$elemMatch: { idx: req.params.idx, status: {$in: ["尚未完成", "進行中"]} } }}, // 完成計畫的情況下不可以修改計畫。
                 {
                     $set: {
                         'detail.$[elem].date': req.body.date,
@@ -240,7 +243,7 @@ router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req
         try {
 
             // 查找是否正在進行計畫 --> 若為 null 則返回錯誤訊息。
-            const r = await studyRecordModel.findOne({group: req.user.group, tempForPreviousTask: { $ne: null }})
+            const r = await studyRecordModel.findOne({group: req.user.group, creator: req.user.token, tempForPreviousTask: { $ne: null }})
             if(!r) return res.send({type: 'warning', message:'請確認是否已從其他裝置執行紀錄。'})
 
 
@@ -250,7 +253,7 @@ router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req
             if (isNaN(diff) || diff < 0) diff = 0; // 防呆
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group, 'tempForPreviousTask.taskId': req.params.taskId}, // 前端傳來的 taskId 必須和正在執行的任務相符才更新，以避免重複執行紀錄。
+                { group: req.user.group, creator: req.user.token, 'tempForPreviousTask.taskId': req.params.taskId}, // 前端傳來的 taskId 必須和正在執行的任務相符才更新，以避免重複執行紀錄。
                 {
                     $set:{
                         tempForPreviousTask: null
@@ -275,7 +278,7 @@ router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req
             let updateStatusResponse = {}
             if(req.body.finish){
                 const updatedDoc = await studyRecordModel.findOne(
-                    { group: req.user.group, 'detail.idx': req.params.idx },
+                    { group: req.user.group, creator: req.user.token, 'detail.idx': req.params.idx },
                     { 'detail.$': 1 } 
                 );
                 const target = updatedDoc.detail[0];
@@ -311,7 +314,7 @@ router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req
 router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, res) => {
 
     const record = await studyRecordModel.updateOne(
-        { group: req.user.group, tempForPreviousTask: null, detail: {$elemMatch: { idx: req.params.idx, status: "尚未完成" } }}, // 只有在尚未完成的情況下，能夠執行任務。
+        { group: req.user.group, creator: req.user.token, tempForPreviousTask: null, detail: {$elemMatch: { idx: req.params.idx, status: "尚未完成" } }}, // 只有在尚未完成的情況下，能夠執行任務。
         {
             $set: {
                 tempForPreviousTask: {
@@ -330,11 +333,85 @@ router.put('/api/studyRecord/startProcessing/:idx',authMiddleware, async (req, r
     return res.send({type: 'success', message: '狀態變更為進行中。'})
 })
 
+// 匯出資料
+router.get('/api/studyRecord/export/:idx', authMiddleware, async (req, res) => {
+    try {
+        if(req.user.type != 'teacher') return res.send(JSON.stringify({type: 'error', message: '資料汲取失敗（使用者權限不足）'}));
+        
+        const { idx } = req.params;
+
+        const record = await studyRecordModel.findOne({
+            group: req.user.group,
+            creator: req.user.token,
+            "detail.idx": idx,
+            "detail.status": { $ne: "進行中" },
+        });
+
+        if (!record) return res.send({ type: 'error', message: '找不到指定的紀錄。' });
+
+
+        const targetDetail = record.detail.find(d => d.idx === idx);
+
+        if (!targetDetail) return res.send({ type: 'error', message: '該子項不存在。'});
+
+        // 匯出該子項（例如 JSON 檔）
+        res.setHeader('Content-Disposition', `attachment; filename=record_${idx}.json`);
+        res.setHeader('Content-Type', 'application/json');
+        return res.send(JSON.stringify(targetDetail, null, 2));
+
+    } 
+    catch (err) {
+        console.error(err);
+        return res.send({ type: 'error', message: '伺服器錯誤，請洽客服人員協助。'});
+    }
+});
+
+
+// 匯入資料
+router.post('/api/studyRecord/import', authMiddleware, upload.single('file'), async (req, res) => {
+  try {
+
+    if(req.user.type != 'teacher') return res.send(JSON.stringify({type: 'error', message: '資料匯入失敗（使用者權限不足）'}));
+
+    if (!req.file) return res.send({ type: 'error',  message: '未上傳檔案。'});
+
+
+    const filePath = req.file.path;
+    const fileBuffer = fs.readFileSync(filePath, 'utf-8');
+    const importedData = JSON.parse(fileBuffer);
+
+    if (!importedData.idx || !importedData.date || !importedData.projectType || !importedData.expectTime || !importedData.status || !importedData.content || !importedData.statistics) 
+        return res.send({ type: 'error', message: '檔案格式不正確。'});
+
+    const record = await studyRecordModel.findOne({ group: req.user.group });
+
+    if (!record) {
+        const newRecord = new studyRecordModel({ group: req.user.group, detail: [importedData]});
+        await newRecord.save();
+        return res.send({ type: 'success', message: `資料匯入成功。` });
+    } 
+    
+    const duplicate = record.detail.some(d => d.idx === importedData.idx);
+    if (duplicate) return res.send({ type: 'error', message: `資料匯入失敗（紀錄已存在）`});
+
+    // 不重複才寫入
+    record.detail.push(importedData);
+    await record.save();
+    return res.send({ type: 'success', message: '資料匯入成功。'});
+
+    
+  } 
+  catch (err) {
+    console.log(err)
+    res.send({ type: 'error', message: '伺服器錯誤，請洽客服人員協助。'});
+  }
+});
+
 
 // 變更計畫狀態 -- 已完成, 執行中, 尚未完成
 async function updateStatus(req, status){
     const record = await studyRecordModel.updateOne(
-        { group: req.user.group },
+        { group: req.user.group, creator: req.user.token},
         {
             $set: {
                 'detail.$[elem].status': status,

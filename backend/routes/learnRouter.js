@@ -6,8 +6,8 @@ const courseModel = require('../models/courseModel');
 const groupModel = require('../models/groupModel');
 const fs = require('fs');
 const path = require('path');
-const archiver = require('archiver');
-const multer = require('multer')
+const upload = require('../config/multer.config.js')
+
 const { v4: uuidv4 } = require('uuid');
 
 // 檢查身份
@@ -191,7 +191,6 @@ router.get('/api/learn/getCourseBanner/:idx/:imageName',async (req, res) => {
 
 
 // 教材建立
-const upload = multer();
 router.post('/api/learn/createMaterial',upload.fields([{ name: 'attachments', maxCount: 1}]),authMiddleware,checkUsageMemory, async (req, res) => {
     
     const {idx, title} = req.body;
@@ -217,7 +216,7 @@ router.post('/api/learn/createMaterial',upload.fields([{ name: 'attachments', ma
                 // 創建文件
                 const filePath = `${databaseUrl}/${materialIdx}.pdf`
                 let file = req.files['attachments'][0];
-                if(file) fs.writeFileSync(filePath, file.buffer);
+                if(file) fs.renameSync(file.path, filePath);
 
                 const url = `/api/learn/getMaterial/${idx}/${materialIdx}`
 
@@ -295,7 +294,7 @@ router.post('/api/learn/modifyMaterial',upload.fields([{ name: 'attachments', ma
                 if(file){
                     const filePath = updatedMaterial.attachmentUrl.original
                     if (fs.existsSync(filePath))fs.unlinkSync(filePath);
-                    fs.writeFileSync(filePath, file.buffer)
+                    fs.renameSync(file.path, filePath);
                 }
 
                 // 返回更新項
