@@ -32,7 +32,9 @@ const authMiddleware = async (req, res, next) => {
 router.get('/api/studyRecord/getRecord',authMiddleware, async (req, res) => {
     try {
         const record = await studyRecordModel.findOne({ group: req.user.group});
-        let send = record? record.detail.reverse(): [];
+        let send = record? record.detail.reverse().sort((a,b)=>{
+            return new Date(b.date).getTime() - new Date(a.date).getTime()
+        }): [];
         return res.send({
             type: 'success',
             executing: record?.tempForPreviousTask ?? null,
