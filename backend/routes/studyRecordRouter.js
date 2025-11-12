@@ -108,7 +108,7 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
     if(req.user.type == 'teacher'){
 
         
-        if(req.body.date.trim() =='' || req.body.content.trim() =='' || req.body.expectTime < 15){
+        if(!req.body.date || req.body.content.trim() =='' || req.body.expectTime < 15){
             return res.send({ type: 'error',message: '資料格式錯誤。'});
         }
 
@@ -134,9 +134,9 @@ router.post('/api/studyRecord/create',authMiddleware, async (req, res) => {
             record.detail.push({
                 idx:uuid,
                 date: date,
-                expectTime: req.body.expectTime ?? 90,
-                projectType: req.body.projectType ?? '其他',
-                content: req.body.content
+                expectTime: req.body.expectTime || 90,
+                projectType: req.body.projectType || '其他',
+                content: req.body.content || '-'
             })
             await record.save();
 
@@ -200,6 +200,19 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
 // 修改計畫
 router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
     if(req.user.type == 'teacher'){
+        
+        if(!req.body.date || req.body.content.trim() ==''){
+            return res.send({ type: 'error',message: '資料格式錯誤。'});
+        }
+        
+        // 檢查日期格式以及自動轉換
+        let date;
+        try{
+            date = format(req.body.date, 'yyyy-MM-dd')
+        }
+        catch{
+            return res.send({ type: 'error', message: '資料格式錯誤。'});
+        }
 
         try {
 
@@ -207,9 +220,9 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                 { group: req.user.group, creator: req.user.token, detail: {$elemMatch: { idx: req.params.idx, status: {$in: ["尚未完成", "進行中"]} } }}, // 完成計畫的情況下不可以修改計畫。
                 {
                     $set: {
-                        'detail.$[elem].date': req.body.date,
-                        'detail.$[elem].content': req.body.content,
-                        'detail.$[elem].projectType': req.body.projectType,
+                        'detail.$[elem].date': date,
+                        'detail.$[elem].content': req.body.content || '-',
+                        'detail.$[elem].projectType': req.body.projectType || '其他',
                     }
                 },
                 {

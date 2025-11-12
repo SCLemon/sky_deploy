@@ -39,7 +39,7 @@ const studyRecordSchema = new mongoose.Schema({
             content:{
                 type: String,
                 trim: true,
-                default:''
+                default:'-'
             },
             statistics:{
                 total:{ // 總時間
