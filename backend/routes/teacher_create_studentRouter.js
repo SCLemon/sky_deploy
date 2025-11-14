@@ -12,57 +12,9 @@ const levelTitle = [
     '鑽石會員','星耀會員','頂級會員','版主','頂級版主'
 ]
 
-// 檢查身份
-const authMiddleware = async (req, res, next) => {
-    const token = req.headers['x-user-token']
-    if (!token) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    const user = await userModel.findOne({ token, status:true });
-    if (!user) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    req.user = user;
-    next();
-};
 
-// 檢查用戶數
-const checkStudentNum = async(req,res,next)=>{
-    try{
-        const group = await groupModel.findOne({group: req.user.group})
-
-        if (!group) {
-            return res.send({
-                type: 'error',
-                message: '課程群組不存在。',
-            });
-        }
-        const limitNum = group.limit.studentNum;
-
-        let students = await userModel.find({ type: 'student', group: req.user.group });
-
-        if (students.length >= limitNum) {
-            return res.send({
-                type: 'error',
-                message: `創建人數已達限制 ${limitNum} 人，如需調額請洽客服人員。`,
-            });
-        }
-        next()
-    }
-    catch(e){
-        console.error(e);
-        return res.send({
-            type: 'error',
-            message: '伺服器錯誤，請洽客服人員協助。',
-        });
-    }
-}
+const authMiddleware = require('../middleware/auth.middleware')
+const checkStudentNum = require('../middleware/checkStudentNum.middleware')
 
 
 // 創建新用戶
@@ -132,6 +84,7 @@ async function deleteFolderOfUser(idx,req){
     }
     catch(e){}
 }
+
 router.delete('/api/infoPage/deleteStudent/:idx',authMiddleware,async(req,res)=>{
     try {
         if (req.user.type === 'teacher') {

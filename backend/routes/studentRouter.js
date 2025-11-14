@@ -2,29 +2,11 @@
 const express = require('express');
 const router = express.Router();
 
-const userModel = require('../models/userModel');
 const courseModel = require('../models/courseModel');
 
 
 // 檢查身份
-const authMiddleware = async (req, res, next) => {
-    const token = req.headers['x-user-token']
-    if (!token) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    const user = await userModel.findOne({ token, status:true });
-    if (!user) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    req.user = user;
-    next();
-};
+const authMiddleware = require('../middleware/auth.middleware')
 
 // 獲取課程資料
 router.get('/api/infoPage/getStudentCourse',authMiddleware, async (req, res) => {

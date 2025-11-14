@@ -2,31 +2,13 @@ const express = require('express');
 const router = express.Router();
 
 const studyRecordModel = require('../models/studyRecordModel');
-const userModel = require('../models/userModel')
 const { v4: uuidv4 } = require('uuid');
 const { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay, differenceInMilliseconds} = require('date-fns');
 const upload = require('../config/multer.config.js')
 const fs = require('fs')
 
 // 檢查身份
-const authMiddleware = async (req, res, next) => {
-    const token = req.headers['x-user-token']
-    if (!token) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    const user = await userModel.findOne({ token, status:true });
-    if (!user) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    req.user = user;
-    next();
-};
+const authMiddleware = require('../middleware/auth.middleware')
 
 // 獲取紀錄資料
 router.get('/api/studyRecord/getRecord',authMiddleware, async (req, res) => {

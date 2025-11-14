@@ -3,46 +3,13 @@ const express = require('express');
 const router = express.Router();
 
 const fs = require('fs');
-const path = require('path');
 
-const userModel = require('../models/userModel');
 const groupModel = require('../models/groupModel');
 
 
-// 檢查身份
-const authMiddleware = async (req, res, next) => {
-    const token = req.headers['x-user-token']
-    if (!token) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    const user = await userModel.findOne({ token, status:true });
-    if (!user) {
-        return res.send({
-            type: 'error',
-            message: '未找到授權，請重新登入。',
-        });
-    }
-    req.user = user;
-    next();
-};
+const authMiddleware = require('../middleware/auth.middleware')
+const { getFolderSize } = require('../middleware/checkUsageMemory.middleware')
 
-// 以下為硬體裝置 API
-// 獲取使用容量
-function getFolderSize(folderPath) {
-    let totalSize = 0;
-    const files = fs.readdirSync(folderPath);
-    files.forEach((file) => {
-      const filePath = path.join(folderPath, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) totalSize += getFolderSize(filePath);
-      else totalSize += stat.size;
-    });
-  
-    return totalSize;
-}
 
 router.get('/api/getUsageMemory',authMiddleware, async (req, res) => {
    
