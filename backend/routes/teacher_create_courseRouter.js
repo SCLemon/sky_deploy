@@ -40,7 +40,6 @@ router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', m
                 const bannerFolderPath = `${folderPath}/banner`
 
                 // 先寫入資料庫
-                console.log(courseType)
                 const newCourse = new courseModel({
                     idx:idx,
                     folderPath:folderPath,
@@ -51,8 +50,6 @@ router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', m
                     group: req.user.group,
                     createTime: format(new Date(),'yyyy-MM-dd HH:mm:ss'),
                 });
-                
-                await newCourse.save()
 
                 // 再創建和將 Banner 寫入資料夾中
                 if (!fs.existsSync(folderPath)){
@@ -61,12 +58,43 @@ router.post('/api/infoPage/createCourse',upload.fields([{ name: 'attachments', m
                 if(!fs.existsSync(bannerFolderPath)){
                     fs.mkdirSync(bannerFolderPath, { recursive: true });
                 }
-
+                
+                // 將 banner 移入到資料夾中
                 let attachments = req.files['attachments']?req.files['attachments']:[]
                 attachments.forEach((file) => {
                     const filePath = `${bannerFolderPath}/${file.originalname}`
                     fs.renameSync(file.path, filePath);
                 });
+
+                // 預設第一份文件
+                const materialIdx = uuidv4();
+                const filePath = `${folderPath}/${materialIdx}.pdf`
+                
+                const defaultFileUrl = path.join(__dirname, '../assets/User_Guideline.pdf');
+
+                // 若預設文件不存在，則直接跳過
+                if (!fs.existsSync(defaultFileUrl)) {
+                    await newCourse.save();
+                    return res.send({
+                        type:'success',
+                        message:'課程創建成功。'
+                    });
+                }
+
+                // 若存在預設文件，則直接寫入。
+                fs.copyFileSync(defaultFileUrl, filePath);
+                const url = `/api/learn/getMaterial/${idx}/${materialIdx}`
+                newCourse.meta.push({
+                    idx: materialIdx,
+                    title: 'User Guideline',
+                    attachmentUrl:{
+                        name: 'User_Guideline',
+                        url:url,
+                        original: filePath
+                    }
+                });
+                
+                await newCourse.save();
 
                 return res.send({
                     type:'success',

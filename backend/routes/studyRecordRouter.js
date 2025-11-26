@@ -162,7 +162,7 @@ router.delete('/api/studyRecord/delete/:idx',authMiddleware, async (req, res) =>
                 return res.send({ type: 'error', message: '計畫刪除失敗。'});
             }
 
-            return res.send({ type: 'success', message: '計畫新增成功。'});
+            return res.send({ type: 'success', message: '計畫刪除成功。'});
         } catch (e) {
             console.log(e);
             return res.send({
@@ -199,7 +199,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
         try {
 
             const record = await studyRecordModel.updateOne(
-                { group: req.user.group, creator: req.user.token, detail: {$elemMatch: { idx: req.params.idx, status: {$in: ["尚未完成", "進行中"]} } }}, // 完成計畫的情況下不可以修改計畫。
+                { group: req.user.group, creator: req.user.token, detail: {$elemMatch: { idx: req.params.idx, status: { $nin: ["進行中"] } } }}, // 進行中的計畫不可以修改計畫。
                 {
                     $set: {
                         'detail.$[elem].date': date,
@@ -208,7 +208,7 @@ router.put('/api/studyRecord/update/:idx',authMiddleware, async (req, res) => {
                     }
                 },
                 {
-                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $in: ["尚未完成", "進行中"] }}]
+                    arrayFilters: [{"elem.idx": req.params.idx, "elem.status": { $nin: ["進行中"] }}]
                 }
             );
 
@@ -280,9 +280,9 @@ router.put('/api/studyRecord/recordTime/:idx/:taskId',authMiddleware, async (req
                 );
                 const target = updatedDoc.detail[0];
 
-                // 閾值為 +- 10 min
-                const status = (target.statistics.total/60) > target.expectTime + 10 ? '延遲完成' 
-                                :(target.statistics.total/60) < target.expectTime - 10 ? '提前完成':'已完成';
+                // 閾值為 +- 30 min
+                const status = (target.statistics.total/60) > target.expectTime + 30 ? '延遲完成' 
+                                :(target.statistics.total/60) < target.expectTime - 30 ? '提前完成':'已完成';
 
                 updateStatusResponse = await updateStatus(req, status);
             }
