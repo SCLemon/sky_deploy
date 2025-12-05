@@ -65,8 +65,8 @@ router.post('/api/post/create',upload.fields([{ name: 'attachments'}]),authMiddl
                     fs.mkdirSync(folderPath, { recursive: true });
                 }
 
-                attachments.forEach((file) => {
-                    const filePath = `${folderPath}/${file.originalname}`
+                attachments.forEach((file,idx) => {
+                    const filePath = `${folderPath}/${idx}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
                 });
 
@@ -248,7 +248,7 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                             name: file,
                             url: `/api/post/image/${post.idx}/${file}`,
                         };
-                    });
+                    })
                 }
 
                 // 創建者
