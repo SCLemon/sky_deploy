@@ -104,7 +104,7 @@ router.post('/login/verify', async (req, res) => {
         await user.save();
 
         res.cookie('authToken',user.token,{
-            maxAge:86400 * 1000 * 3, // 3 天
+            maxAge:86400 * 1000 * 7, // 7 天
         })
         userData = {
             idx:user.idx,
