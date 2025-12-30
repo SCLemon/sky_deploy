@@ -8,7 +8,7 @@ const {format} = require('date-fns')
 
 const levelTitle = [
     '新手會員','普通會員','進階會員','高級會員','鉑金會員',
-    '鑽石會員','星耀會員','頂級會員','版主','頂級版主'
+    '鑽石會員','星耀會員','頂級會員','特權貴賓','頂級版主'
 ]
 // anonymous mode
 router.post('/login/anonymous', async (req, res) => {
