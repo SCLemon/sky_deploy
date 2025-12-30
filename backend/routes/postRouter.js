@@ -302,18 +302,71 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
     }
 });
 
+// 隱藏貼文
+router.put('/api/post/hidePost/:idx', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.type === 'teacher') {
+            const idx = req.params.idx;
+            try{
+
+                const targetPost = await postModel.findOne({
+                    idx:idx,
+                    group: req.user.group,
+                });
+                
+                targetPost.status = !targetPost.status
+
+                targetPost.save();
+
+                return res.send({
+                    type:'success',
+                    postStatus: targetPost.status,
+                    message:`貼文${targetPost.status?'公開':'隱藏'}成功。`
+                });
+
+            }
+            catch(e){
+                console.log(e)
+                return res.send({
+                    type:'error',
+                    message:'貼文閱覽權限調整失敗。'
+                });
+            }
+        } 
+        else {
+            return res.send({
+                type: 'error',
+                message: '您沒有權限調整閱覽權限。',
+            });
+        }
+    } catch (e) {
+        console.log(e);
+        return res.send({
+            type: 'error',
+            message: '伺服器錯誤，請洽客服人員協助。',
+        });
+    }
+});
+
 // 獲取分享貼文
 router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
 
     try {
         let posts = [];
-        
+        let targetPost = null;
+
         const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         const share = req.params.share;
 
         if(uuidV4Regex.test(share)){
-            const post = await postModel.findOne({ group: req.user.group, idx: share });
-            if(post) posts.push(post)
+            if (req.user.type === 'teacher'){
+                targetPost = await postModel.findOne({ group: req.user.group, idx: share });
+            }
+            else if (req.user.type === 'student'){
+                targetPost = await postModel.findOne({ group: req.user.group, idx: share, status: true });
+            }
+            
+            if(targetPost) posts.push(targetPost)
             if(posts.length == 0){
                 return res.send({
                     type: 'success',
@@ -405,39 +458,24 @@ router.get('/api/post/toggleLikePost/:idx', authMiddleware, async (req, res) => 
         const post = await postModel.findOne({
             idx: postIdx,
             group: req.user.group,
-            'meta.like.idx': req.user.idx
         });
-    
-        let updatedPost;
-        if (post) {
-            updatedPost = await postModel.findOneAndUpdate(
-            { idx: postIdx, group: req.user.group },
-            {
-                $pull: {
-                    'meta.like': { idx: req.user.idx }
-                }
-            },
-            { new: true }
-            );
-    
-            if (!updatedPost) return res.send({ type: 'error', message: '取消按讚失敗' });
+
+        if(!post || (req.user.type!='teacher' && !post.status)){
+            return res.send({ type: 'error', message: '目前無法對貼文進行操作（貼文暫時關閉中）。' }); 
+        }
+        
+        let likedList = (post.meta.like);
+        const targetInListIdx = likedList.findIndex(like => like.idx === req.user.idx);
+
+        if (targetInListIdx !== -1) {
+            likedList.splice(targetInListIdx, 1);
         } 
         else {
-            // 如果沒按過讚，則按讚（$push）
-            updatedPost = await postModel.findOneAndUpdate(
-            { idx: postIdx, group: req.user.group },
-            {
-                $push: {
-                'meta.like': { idx: req.user.idx }
-                }
-            },
-            { new: true }
-            );
-    
-            if (!updatedPost) return res.send({ type: 'error', message: '貼文按讚失敗' });
+            likedList.push({idx: req.user.idx})
         }
 
-        return res.send({ type: 'success', message: '貼文按讚執行完畢', likeCount: updatedPost.meta.like.length});
+        await post.save();
+        return res.send({ type: 'success', message: '貼文按讚執行完畢', likeCount: (post.meta.like).length});
   
     } catch (e) {
         console.error(e);
@@ -458,16 +496,16 @@ router.post('/api/post/message', authMiddleware, async (req, res) => {
         const message = req.body.message;
         const fingerprint = req.headers['x-user-fingerprint'];
         const createTime = format(new Date(),'yyyy-MM-dd HH:mm:ss');
-        if(!postIdx || message.trim() == ''){
-            return res.send({
-                type: 'error',
-                message: '留言失敗（訊息不可為空）',
-            });
-        }
-        if (!fingerprint || !/^[a-f0-9]{64}$/.test(fingerprint)) {
+        if (!postIdx ||!fingerprint || !/^[a-f0-9]{64}$/.test(fingerprint)) {
             return res.send({
                 type: 'error',
                 message: '留言失敗（參數異常錯誤）',
+            });
+        }
+        if(message.trim() == ''){
+            return res.send({
+                type: 'error',
+                message: '留言失敗（訊息不可為空）',
             });
         }
         const post = await postModel.findOneAndUpdate({idx:postIdx, group:req.user.group},
@@ -482,12 +520,10 @@ router.post('/api/post/message', authMiddleware, async (req, res) => {
                 }
             }
         )
-        if(!post){
-            return res.send({
-                type: 'error',
-                message: '留言失敗',
-            });
+        if(!post || (req.user.type!='teacher' && !post.status)){
+            return res.send({ type: 'error', message: '目前無法對貼文進行操作（貼文暫時關閉中）。' }); 
         }
+
         return res.send({
             type: 'success',
             data: {
