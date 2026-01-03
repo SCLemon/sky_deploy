@@ -111,7 +111,7 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
     const idx = req.params.idx;
 
     try{
-        if(req.user.type  == 'teacher'){
+        if(req.user.type  == 'teacher' || req.user.type == 'student' && req.user.account != 'Visitor'){
             const user = await userModel.findOne({idx: idx, group: req.user.group})
 
             if(!user){
@@ -165,7 +165,7 @@ router.post('/api/userInfo/modifyUserInfo/:idx',upload.fields([{ name: 'attachme
     const { password, name, phone, address, level, mailAddress} = JSON.parse(req.body.userInfo);
 
     try{
-        if(req.user.type  == 'teacher'){
+        if(req.user.type  == 'teacher' || req.user.type  == 'student' && req.user.account != 'Visitor'){
 
             const groupInfo = await groupModel.findOne({group: req.user.group});
             if(!groupInfo){
