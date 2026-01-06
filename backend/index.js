@@ -54,20 +54,17 @@ app.use(adminRouter);
 const loginRouter = require('./routes/loginRouter');
 app.use(loginRouter);
 
-const teacher_create_courseRouter = require('./routes/teacher_create_courseRouter');
-app.use(teacher_create_courseRouter);
+const create_columnRouter = require('./routes/create_columnRouter');
+app.use(create_columnRouter);
 
-const teacher_create_studentRouter = require('./routes/teacher_create_studentRouter');
-app.use(teacher_create_studentRouter);
-
-const studentRouter = require('./routes/studentRouter');
-app.use(studentRouter);
+const create_userRouter = require('./routes/create_userRouter');
+app.use(create_userRouter);
 
 const postRouter = require('./routes/postRouter');
 app.use(postRouter);
 
-const learnRouter = require('./routes/learnRouter');
-app.use(learnRouter);
+const columnRouter = require('./routes/columnRouter');
+app.use(columnRouter);
 
 const userInfoRouter = require('./routes/userInfoRouter');
 app.use(userInfoRouter);

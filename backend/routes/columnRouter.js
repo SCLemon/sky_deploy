@@ -1,15 +1,14 @@
-// 針對 Learn 課程列表
 const express = require('express');
 const router = express.Router();
 const courseModel = require('../models/courseModel');
 const fs = require('fs');
 const path = require('path');
-const upload = require('../config/multer.config.js')
 
 const { v4: uuidv4 } = require('uuid');
 
 const authMiddleware = require('../middleware/auth.middleware')
 const { checkUsageMemory } = require('../middleware/checkUsageMemory.middleware')
+const { upload, autoCleanupTmp } = require('../config/multer.config');
 
 
 router.get('/api/learn/getCourse', authMiddleware, async (req, res) => {
@@ -120,7 +119,7 @@ router.get('/api/learn/getCourseBanner/:idx/:imageName',async (req, res) => {
 
 
 // 教材建立
-router.post('/api/learn/createMaterial',upload.fields([{ name: 'attachments', maxCount: 1}]),authMiddleware,checkUsageMemory, async (req, res) => {
+router.post('/api/learn/createMaterial',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     
     const {idx, title} = req.body;
 
@@ -191,7 +190,7 @@ router.post('/api/learn/createMaterial',upload.fields([{ name: 'attachments', ma
 });
 
 // 教材更新
-router.post('/api/learn/modifyMaterial',upload.fields([{ name: 'attachments', maxCount: 1}]),authMiddleware,checkUsageMemory, async (req, res) => {
+router.post('/api/learn/modifyMaterial',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     
     const {idx, materialIdx, title} = req.body;
     const result = await courseModel.updateOne(

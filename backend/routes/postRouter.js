@@ -7,35 +7,27 @@ const postModel = require('../models/postModel')
 const fs = require('fs');
 const {format} = require('date-fns')
 const { v4: uuidv4 } = require('uuid');
-const upload = require('../config/multer.config.js')
+
 const path = require('path')
 
 const authMiddleware = require('../middleware/auth.middleware')
 const { checkUsageMemory } = require('../middleware/checkUsageMemory.middleware')
-
+const { upload, autoCleanupTmp } = require('../config/multer.config');
 
 // 創建貼文
-router.post('/api/post/create',upload.fields([{ name: 'attachments'}]),authMiddleware,checkUsageMemory, async (req, res) => {
+router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachments'}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     
-    const {content} = req.body;
-    let attachments = req.files['attachments']?req.files['attachments']:[]
-
-    if(content.trim().length == 0 && attachments.length == 0){
-        return res.send({
-            type:'error',
-            message:'貼文內容不可為空。'
-        });
-    }
-    const groupInfo = await groupModel.findOne({group: req.user.group});
-    if(!groupInfo){
-        return res.send({
-            type:'error',
-            message:'貼文創建失敗（群組不存在）。'
-        });
-    }
-    
-    const databaseUrl = groupInfo.databaseUrl;
     try {
+        const {content} = req.body;
+        let attachments = req.files['attachments']?req.files['attachments']:[]
+
+        if(content.trim().length == 0 && attachments.length == 0) return res.send({ type:'error', message:'貼文內容不可為空。'});
+
+        const groupInfo = await groupModel.findOne({group: req.user.group});
+
+        if(!groupInfo) return res.send({ type:'error', message:'貼文創建失敗（群組不存在）。'});
+    
+        const databaseUrl = groupInfo.databaseUrl;
         if (req.user.type === 'teacher') {
             // 創建貼文專屬 idx
             const idx = uuidv4();
@@ -61,41 +53,27 @@ router.post('/api/post/create',upload.fields([{ name: 'attachments'}]),authMiddl
                 await newPost.save()
 
                 // 再創建並寫入資料夾中
-                if (!fs.existsSync(folderPath)){
-                    fs.mkdirSync(folderPath, { recursive: true });
-                }
+                if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
                 attachments.forEach((file,idx) => {
                     const filePath = `${folderPath}/${idx}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
                 });
 
-                return res.send({
-                    type:'success',
-                    message:'貼文創建成功。'
-                });
+                return res.send({ type:'success', message:'貼文創建成功。'});
 
             }
             catch(e){
                 console.log(e)
-                return res.send({
-                    type:'error',
-                    message:'貼文創建失敗。'
-                });
+                return res.send({ type:'error', message:'貼文創建失敗。'});
             }
         } 
         else {
-            return res.send({
-                type: 'error',
-                message: '您沒有權限創建貼文。',
-            });
+            return res.send({ type: 'error', message: '您沒有權限創建貼文。'});
         }
     } catch (e) {
         console.log(e);
-        return res.send({
-            type: 'error',
-            message: '伺服器錯誤，請洽客服人員協助。',
-        });
+        return res.send({ type: 'error', message: '伺服器錯誤，請洽客服人員協助。'});
     }
 });
 

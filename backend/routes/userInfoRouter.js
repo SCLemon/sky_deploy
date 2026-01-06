@@ -4,7 +4,6 @@ const router = express.Router();
 const userModel = require('../models/userModel');
 const groupModel = require('../models/groupModel')
 const fs = require('fs');
-const upload = require('../config/multer.config.js')
 const path = require('path');
 
 const levelTitle = [
@@ -14,9 +13,10 @@ const levelTitle = [
 
 const authMiddleware = require('../middleware/auth.middleware')
 const { checkUsageMemory } = require('../middleware/checkUsageMemory.middleware')
+const { upload, autoCleanupTmp } = require('../config/multer.config');
 
 // 更改頭貼 --> 由用戶自行修改，以 token 進行驗證
-router.post('/api/userInfo/updateIcon', upload.fields([{ name: 'attachments', maxCount: 1}]), authMiddleware, checkUsageMemory, async (req, res) => {
+router.post('/api/userInfo/updateIcon',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     const token = req.headers['x-user-token']
     try {
         const groupInfo = await groupModel.findOne({group: req.user.group});
@@ -160,7 +160,7 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
 });
 
 
-router.post('/api/userInfo/modifyUserInfo/:idx',upload.fields([{ name: 'attachments', maxCount: 1}]), authMiddleware, checkUsageMemory,async (req, res) => {
+router.post('/api/userInfo/modifyUserInfo/:idx',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory,async (req, res) => {
     const idx = req.params.idx;
     const { password, name, phone, address, level, mailAddress} = JSON.parse(req.body.userInfo);
 
