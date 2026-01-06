@@ -366,42 +366,44 @@ router.get('/api/studyRecord/export/:idx', authMiddleware, async (req, res) => {
 
 // 匯入資料
 router.post('/api/studyRecord/import', authMiddleware, upload.single('file'), async (req, res) => {
-  try {
-
+    
     if(req.user.type != 'teacher') return res.send(JSON.stringify({type: 'error', message: '資料匯入失敗（使用者權限不足）'}));
-
     if (!req.file) return res.send({ type: 'error',  message: '未上傳檔案。'});
-
-
     const filePath = req.file.path;
-    const fileBuffer = fs.readFileSync(filePath, 'utf-8');
-    const importedData = JSON.parse(fileBuffer);
+    
+    try {
 
-    if (!importedData.idx || !importedData.date || !importedData.projectType || !importedData.expectTime || !importedData.status || !importedData.content || !importedData.statistics) 
-        return res.send({ type: 'error', message: '檔案格式不正確。'});
+        const fileBuffer = fs.readFileSync(filePath, 'utf-8');
+        const importedData = JSON.parse(fileBuffer);
 
-    const record = await studyRecordModel.findOne({ group: req.user.group });
+        if (!importedData.idx || !importedData.date || !importedData.projectType || !importedData.expectTime || !importedData.status || !importedData.content || !importedData.statistics) 
+            return res.send({ type: 'error', message: '檔案格式不正確。'});
 
-    if (!record) {
-        const newRecord = new studyRecordModel({ group: req.user.group, detail: [importedData]});
-        await newRecord.save();
-        return res.send({ type: 'success', message: `資料匯入成功。` });
+        const record = await studyRecordModel.findOne({ group: req.user.group });
+
+        if (!record) {
+            const newRecord = new studyRecordModel({ group: req.user.group, detail: [importedData]});
+            await newRecord.save();
+            return res.send({ type: 'success', message: `資料匯入成功。` });
+        } 
+        
+        const duplicate = record.detail.some(d => d.idx === importedData.idx);
+        if (duplicate) return res.send({ type: 'error', message: `資料匯入失敗（紀錄已存在）`});
+
+        // 不重複才寫入
+        record.detail.push(importedData);
+        await record.save();
+        return res.send({ type: 'success', message: '資料匯入成功。'});
+
+        
     } 
-    
-    const duplicate = record.detail.some(d => d.idx === importedData.idx);
-    if (duplicate) return res.send({ type: 'error', message: `資料匯入失敗（紀錄已存在）`});
-
-    // 不重複才寫入
-    record.detail.push(importedData);
-    await record.save();
-    return res.send({ type: 'success', message: '資料匯入成功。'});
-
-    
-  } 
-  catch (err) {
-    console.log(err)
-    res.send({ type: 'error', message: '伺服器錯誤，請洽客服人員協助。'});
-  }
+    catch (err) {
+        console.log(err)
+        res.send({ type: 'error', message: '伺服器錯誤，請洽客服人員協助。'});
+    }
+    finally{
+        fs.existsSync(filePath) && fs.unlinkSync(filePath);
+    }
 });
 
 
