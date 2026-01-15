@@ -71,9 +71,9 @@ router.post('/login/anonymous', async (req, res) => {
 });
 // 登入驗證
 router.post('/login/verify', async (req, res) => {
-    const {account, password, type} = req.body;
+    const {account, password} = req.body;
 
-    if (!account || !password || !type) {
+    if (!account || !password) {
         return res.send({
             type:'error',
             message:'登入資料不可為空。'
@@ -81,7 +81,7 @@ router.post('/login/verify', async (req, res) => {
     }
 
     try {
-        const user = await userModel.findOne({ account, password, type });
+        const user = await userModel.findOne({ account, password });
         if (!user) {
             return res.send({
                 type:'error',
