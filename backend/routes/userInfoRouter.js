@@ -137,7 +137,8 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
                         levelTitle: levelTitle[user.level - 1]
                     },
                     mailAddress: user.detail.mailAddress,
-                    userImgUrl: user.detail.photoStickers.url
+                    userImgUrl: user.userImgUrl.url,
+                    userPhotoStickerUrl: user.detail.photoStickers.url
                 },
                 levelTitleArray:levelTitle,
                 message:'使用者資料獲取成功'
