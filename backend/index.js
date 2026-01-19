@@ -75,6 +75,9 @@ app.use(studyRecordRouter);
 const paperRecordRouter = require('./routes/paperRecordRouter');
 app.use(paperRecordRouter);
 
+const {router: serviceWorkerRouter} = require('./routes/service-worker/serviceWorkerRouter')
+app.use(serviceWorkerRouter)
+
 app.listen(3007,()=>{
     console.log('server is running on port 3007')
 })

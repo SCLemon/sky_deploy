@@ -14,6 +14,9 @@ const authMiddleware = require('../middleware/auth.middleware')
 const { checkUsageMemory } = require('../middleware/checkUsageMemory.middleware')
 const { upload, autoCleanupTmp } = require('../config/multer.config');
 
+// 推播通知
+const { pushNotification } = require('./service-worker/serviceWorkerRouter')
+
 // 創建貼文
 router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachments'}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     
@@ -59,7 +62,7 @@ router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachment
                     const filePath = `${folderPath}/${idx}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
                 });
-
+                await pushNotification("檸檬小天地", "檸檬剛剛發佈了一則新貼文！", "./");
                 return res.send({ type:'success', message:'貼文創建成功。'});
 
             }
