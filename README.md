@@ -195,3 +195,16 @@ sudo certbot renew --dry-run
 ```bash
 You should modify path for these files in sslPath.js
 ```
+
+
+---
+
+## 查看 Docker 中 mongodb 資料
+
+```
+docker exec -it <容器名稱> mongosh
+show dbs
+use <your_db>
+show collections
+db.<your_collection>.find().limit(10)
+```
