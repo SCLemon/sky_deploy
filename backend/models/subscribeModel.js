@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const subscribeSchema = new mongoose.Schema({
-    endpoint: {
+    deviceFingerprint:{
       type: String,
       required: true,
       unique: true,
@@ -10,7 +10,7 @@ const subscribeSchema = new mongoose.Schema({
     subscription: {
       type: Object,
       required: true,
-    },
+    }
 });
 
 const subscribeModel = mongoose.model("Subscribe", subscribeSchema);
