@@ -57,6 +57,10 @@ const postSchema = new mongoose.Schema({
             ],
             default:[]
         }
+    },
+    attachmentInfo:{
+        type: Array,
+        default: [],
     }
 });
 const postModel = mongoose.model('posts', postSchema);

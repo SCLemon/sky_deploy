@@ -52,16 +52,24 @@ router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachment
                     content: content,
                     databaseUrl:folderPath,
                     createTime: format(new Date(),'yyyy-MM-dd HH:mm:ss'),
+                    
                 });
                 await newPost.save()
 
                 // 再創建並寫入資料夾中
                 if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
+                const attachmentInfo = JSON.parse(req.body.attachmentInfo);
+                let availableAttachmentInfo = [];
+
                 attachments.forEach((file,idx) => {
-                    const filePath = `${folderPath}/${idx}${path.extname(file.originalname)}`
+                    const filePath = `${folderPath}/${attachmentInfo[idx].id}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
+                    availableAttachmentInfo.push({filename:`${attachmentInfo[idx].id}${path.extname(file.originalname)}`,...attachmentInfo[idx]})
                 });
+                newPost.attachmentInfo = availableAttachmentInfo;
+                await newPost.save();
+
                 pushNotification("檸檬小天地", "檸檬剛剛發佈了一則新貼文！", "./");
                 return res.send({ type:'success', message:'貼文創建成功。'});
 
@@ -224,12 +232,26 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                 const databaseUrl = post.databaseUrl;
 
                 if (fs.existsSync(databaseUrl)) {
-                    postImg = fs.readdirSync(databaseUrl).map((file) => {
-                        return {
-                            name: file,
-                            url: `/api/post/image/${post.idx}/${file}`,
-                        };
-                    })
+
+                    // 支援 v1.5.0.0 後續的讀取版本
+                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
+                        postImg = post.attachmentInfo.map((p) => {
+                           return {
+                                name: p.filename,
+                                url: `/api/post/image/${post.idx}/${p.filename}`,
+                                position: p.position
+                           }
+                        })
+                    }
+                    else { // 支援 v1.5.0.0 以前的讀取版本
+                        postImg = fs.readdirSync(databaseUrl).map((file) => {
+                            return {
+                                name: file,
+                                url: `/api/post/image/${post.idx}/${file}`,
+                                position: {x:0, y:0, referWidth: 0, scale: 1}
+                            };
+                        })
+                    }
                 }
 
                 // 創建者
