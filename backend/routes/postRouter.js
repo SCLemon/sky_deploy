@@ -70,7 +70,6 @@ router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachment
                 newPost.attachmentInfo = availableAttachmentInfo;
                 await newPost.save();
 
-                pushNotification("檸檬小天地", "檸檬剛剛發佈了一則新貼文！", "./");
                 return res.send({ type:'success', message:'貼文創建成功。'});
 
             }
@@ -351,6 +350,46 @@ router.put('/api/post/hidePost/:idx', authMiddleware, async (req, res) => {
     }
 });
 
+// 推播貼文
+router.get('/api/post/notify/:idx', authMiddleware, async (req, res) => {
+    try {
+        if (req.user.type === 'teacher') {
+            const idx = req.params.idx;
+
+            try{
+
+                const targetPost = await postModel.findOne({ idx:idx, group: req.user.group, status: true });
+                if(!targetPost) return res.send({ type:'error',message:`貼文推播失敗（貼文不存在）。`});
+
+                // 推播貼文
+                await pushNotification("檸檬小天地", "檸檬推播了一則有趣的貼文！", "./#/academic/post/" + targetPost.idx);
+                
+                return res.send({ type:'success',message:`貼文推播成功。`});
+
+            }
+            catch(e){
+                console.log(e)
+                return res.send({
+                    type:'error',
+                    message:'貼文推播失敗。'
+                });
+            }
+        } 
+        else {
+            return res.send({
+                type: 'error',
+                message: '您沒有權限進行貼文推播。',
+            });
+        }
+    } catch (e) {
+        console.log(e);
+        return res.send({
+            type: 'error',
+            message: '伺服器錯誤，請洽客服人員協助。',
+        });
+    }
+});
+
 // 獲取分享貼文
 router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
 
@@ -391,12 +430,26 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
                 const databaseUrl = post.databaseUrl;
 
                 if (fs.existsSync(databaseUrl)) {
-                    postImg = fs.readdirSync(databaseUrl).map((file) => {
-                        return {
-                            name: file,
-                            url: `/api/post/image/${post.idx}/${file}`,
-                        };
-                    });
+
+                    // 支援 v1.5.0.0 後續的讀取版本
+                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
+                        postImg = post.attachmentInfo.map((p) => {
+                           return {
+                                name: p.filename,
+                                url: `/api/post/image/${post.idx}/${p.filename}`,
+                                position: p.position
+                           }
+                        })
+                    }
+                    else { // 支援 v1.5.0.0 以前的讀取版本
+                        postImg = fs.readdirSync(databaseUrl).map((file) => {
+                            return {
+                                name: file,
+                                url: `/api/post/image/${post.idx}/${file}`,
+                                position: {x:0, y:0, referWidth: 0, scale: 1}
+                            };
+                        })
+                    }
                 }
 
                 // 創建者
@@ -411,7 +464,7 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
                 // 留言
                 let message = [];
                 for (const i of post.meta.message) {
-                    const user = await userModel.findOne({ idx: i.idx });
+                    const user = await userModel.findOne({ idx: i.idx, status:true });
                     if (!user) continue;
                     message.push({
                         name: user.name,
