@@ -65,7 +65,25 @@ router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachment
                 attachments.forEach((file,idx) => {
                     const filePath = `${folderPath}/${attachmentInfo[idx].id}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
-                    availableAttachmentInfo.push({filename:`${attachmentInfo[idx].id}${path.extname(file.originalname)}`,...attachmentInfo[idx]})
+
+                    const { url, ...rest } = attachmentInfo[idx];
+                    availableAttachmentInfo.push({
+                        filename: `${attachmentInfo[idx].id}${path.extname(file.originalname)}`,
+                        ...rest
+                    });
+                    /*  儲存格式如下
+                        {
+                            "filename" : "95dfd8cc-72c9-4951-8078-61c8b48cadc9.png",
+                            "id" : "95dfd8cc-72c9-4951-8078-61c8b48cadc9",
+                            "position" : {
+                                "x" : NumberInt(0),
+                                "y" : NumberInt(0),
+                                "referWidth" : NumberInt(0),
+                                "scale" : NumberInt(1)
+                            }
+                        }
+                    */
+
                 });
                 newPost.attachmentInfo = availableAttachmentInfo;
                 await newPost.save();
@@ -243,13 +261,34 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                         })
                     }
                     else { // 支援 v1.5.0.0 以前的讀取版本
-                        postImg = fs.readdirSync(databaseUrl).map((file) => {
+                        let attachmentInfo = fs.readdirSync(databaseUrl).map((file) => {
+
+                            // 更改原先檔案的資料儲存結構
+                            const uuid = uuidv4();
+                            const newFilename = uuid + path.extname(file);
+                            const defaultPosition = {x:0, y:0, referWidth: 0, scale: 1}
+                            
+                            const oldPath = path.join(databaseUrl, file);
+                            const newPath = path.join(databaseUrl, newFilename);
+                            fs.renameSync(oldPath, newPath);
+
+                            // 同時撰寫要回傳的資料
+                            postImg.push({
+                                name: newFilename,
+                                url: `/api/post/image/${post.idx}/${newFilename}`,
+                                position: defaultPosition
+                            })
+
                             return {
-                                name: file,
-                                url: `/api/post/image/${post.idx}/${file}`,
-                                position: {x:0, y:0, referWidth: 0, scale: 1}
+                                filename: newFilename,
+                                id: uuid,
+                                position: defaultPosition
                             };
                         })
+
+                        post.attachmentInfo = attachmentInfo
+                        await post.save();
+
                     }
                 }
 
@@ -263,18 +302,28 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
                 const isLike = post.meta.like.some((likeUser) => likeUser.idx === req.user.idx);
 
                 // 留言
-                let message = [];
-                for (const i of post.meta.message) {
-                    const user = await userModel.findOne({ idx: i.idx, status:true });
-                    if (!user) continue;
-                    message.push({
+
+                const userIdxSet = new Set(post.meta.message.map(m => m.idx));
+
+                const users = await userModel.find(
+                    { idx: { $in: [...userIdxSet] }, status: true },
+                    { idx: 1, name: 1, level: 1, userImgUrl: 1 }
+                );
+
+                const userMap = new Map(users.map(u => [u.idx, u]));
+
+                const message = post.meta.message.map(i => {
+                    const user = userMap.get(i.idx);
+                    if (!user) return null;
+
+                    return {
                         name: user.name,
                         level: user.level,
                         userImgUrl: user.userImgUrl.url,
                         createTime: i.createTime,
                         message: i.message
-                    });
-                }
+                    };
+                }).filter(Boolean);
                 
                 return {
                     idx: post.idx,
@@ -293,6 +342,150 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
         return res.send({
             type: 'success',
             posts:posts.reverse(),
+            message: '用戶資料查詢成功。',
+        });
+    } catch (e) {
+        console.log(e);
+        return res.send({
+            type: 'error',
+            message: '伺服器錯誤，請洽客服人員協助。',
+        });
+    }
+});
+
+// 獲取分享貼文
+router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
+
+    try {
+        let posts = [];
+        let targetPost = null;
+
+        const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const share = req.params.share;
+
+        if(uuidV4Regex.test(share)){
+            if (req.user.type === 'teacher'){
+                targetPost = await postModel.findOne({ group: req.user.group, idx: share });
+            }
+            else if (req.user.type === 'student'){
+                targetPost = await postModel.findOne({ group: req.user.group, idx: share, status: true });
+            }
+            
+            if(targetPost) posts.push(targetPost)
+            if(posts.length == 0){
+                return res.send({
+                    type: 'success',
+                    posts:[],
+                    message: '貼文資料查詢成功。',
+                });
+            }
+        }
+        else {
+            return res.send({
+                type: 'error',
+                message: '貼文內容不存在或權限不足無法閱覽。',
+            })
+        }
+
+        posts = await Promise.all(
+            posts.map(async (post) => {
+                let postImg = [];
+                const databaseUrl = post.databaseUrl;
+
+                if (fs.existsSync(databaseUrl)) {
+
+                    // 支援 v1.5.0.0 後續的讀取版本
+                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
+                        postImg = post.attachmentInfo.map((p) => {
+                           return {
+                                name: p.filename,
+                                url: `/api/post/image/${post.idx}/${p.filename}`,
+                                position: p.position
+                           }
+                        })
+                    }
+                    else { // 支援 v1.5.0.0 以前的讀取版本
+                        let attachmentInfo = fs.readdirSync(databaseUrl).map((file) => {
+
+                            // 更改原先檔案的資料儲存結構
+                            const uuid = uuidv4();
+                            const newFilename = uuid + path.extname(file);
+                            const defaultPosition = {x:0, y:0, referWidth: 0, scale: 1}
+                            
+                            const oldPath = path.join(databaseUrl, file);
+                            const newPath = path.join(databaseUrl, newFilename);
+                            fs.renameSync(oldPath, newPath);
+
+                            // 同時撰寫要回傳的資料
+                            postImg.push({
+                                name: newFilename,
+                                url: `/api/post/image/${post.idx}/${newFilename}`,
+                                position: defaultPosition
+                            })
+
+                            return {
+                                filename: newFilename,
+                                id: uuid,
+                                position: defaultPosition
+                            };
+                        })
+
+                        post.attachmentInfo = attachmentInfo
+                        await post.save();
+
+                    }
+                }
+
+                // 創建者
+                const creator = await userModel.findOne({idx:post.creator.idx})
+                let creatorInfo = {
+                    name : creator.name,
+                    userImgUrl: creator.userImgUrl.url
+                }
+
+                const isLike = post.meta.like.some((likeUser) => likeUser.idx === req.user.idx);
+
+                // 留言
+
+                const userIdxSet = new Set(post.meta.message.map(m => m.idx));
+
+                const users = await userModel.find(
+                    { idx: { $in: [...userIdxSet] }, status: true },
+                    { idx: 1, name: 1, level: 1, userImgUrl: 1 }
+                );
+
+                const userMap = new Map(users.map(u => [u.idx, u]));
+
+                const message = post.meta.message.map(i => {
+                    const user = userMap.get(i.idx);
+                    if (!user) return null;
+
+                    return {
+                        name: user.name,
+                        level: user.level,
+                        userImgUrl: user.userImgUrl.url,
+                        createTime: i.createTime,
+                        message: i.message
+                    };
+                }).filter(Boolean);
+                
+                return {
+                    idx: post.idx,
+                    createTime: post.createTime,
+                    creator: creatorInfo,
+                    content: post.content,
+                    status: post.status,
+                    message: message,
+                    postImg: postImg,
+                    isLike: isLike,
+                    likeCount:post.meta.like.length
+                };
+            })
+        );
+
+        return res.send({
+            type: 'success',
+            posts:posts,
             message: '用戶資料查詢成功。',
         });
     } catch (e) {
@@ -362,9 +555,9 @@ router.get('/api/post/notify/:idx', authMiddleware, async (req, res) => {
                 if(!targetPost) return res.send({ type:'error',message:`貼文推播失敗（貼文不存在）。`});
 
                 // 推播貼文
-                await pushNotification("檸檬小天地", "檸檬推播了一則有趣的貼文！", "./#/academic/post/" + targetPost.idx);
+                pushNotification("檸檬小天地", "檸檬推播了一則有趣的貼文！", "./#/academic/post/" + targetPost.idx);
                 
-                return res.send({ type:'success',message:`貼文推播成功。`});
+                return res.send({ type:'success',message:`貼文推播執行。`});
 
             }
             catch(e){
@@ -381,119 +574,6 @@ router.get('/api/post/notify/:idx', authMiddleware, async (req, res) => {
                 message: '您沒有權限進行貼文推播。',
             });
         }
-    } catch (e) {
-        console.log(e);
-        return res.send({
-            type: 'error',
-            message: '伺服器錯誤，請洽客服人員協助。',
-        });
-    }
-});
-
-// 獲取分享貼文
-router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
-
-    try {
-        let posts = [];
-        let targetPost = null;
-
-        const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        const share = req.params.share;
-
-        if(uuidV4Regex.test(share)){
-            if (req.user.type === 'teacher'){
-                targetPost = await postModel.findOne({ group: req.user.group, idx: share });
-            }
-            else if (req.user.type === 'student'){
-                targetPost = await postModel.findOne({ group: req.user.group, idx: share, status: true });
-            }
-            
-            if(targetPost) posts.push(targetPost)
-            if(posts.length == 0){
-                return res.send({
-                    type: 'success',
-                    posts:[],
-                    message: '貼文資料查詢成功。',
-                });
-            }
-        }
-        else {
-            return res.send({
-                type: 'error',
-                message: '貼文內容不存在或權限不足無法閱覽。',
-            })
-        }
-
-        posts = await Promise.all(
-            posts.map(async (post) => {
-                let postImg = [];
-                const databaseUrl = post.databaseUrl;
-
-                if (fs.existsSync(databaseUrl)) {
-
-                    // 支援 v1.5.0.0 後續的讀取版本
-                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
-                        postImg = post.attachmentInfo.map((p) => {
-                           return {
-                                name: p.filename,
-                                url: `/api/post/image/${post.idx}/${p.filename}`,
-                                position: p.position
-                           }
-                        })
-                    }
-                    else { // 支援 v1.5.0.0 以前的讀取版本
-                        postImg = fs.readdirSync(databaseUrl).map((file) => {
-                            return {
-                                name: file,
-                                url: `/api/post/image/${post.idx}/${file}`,
-                                position: {x:0, y:0, referWidth: 0, scale: 1}
-                            };
-                        })
-                    }
-                }
-
-                // 創建者
-                const creator = await userModel.findOne({idx:post.creator.idx})
-                let creatorInfo = {
-                    name : creator.name,
-                    userImgUrl: creator.userImgUrl.url
-                }
-
-                const isLike = post.meta.like.some((likeUser) => likeUser.idx === req.user.idx);
-
-                // 留言
-                let message = [];
-                for (const i of post.meta.message) {
-                    const user = await userModel.findOne({ idx: i.idx, status:true });
-                    if (!user) continue;
-                    message.push({
-                        name: user.name,
-                        level: user.level,
-                        userImgUrl: user.userImgUrl.url,
-                        createTime: i.createTime,
-                        message: i.message
-                    });
-                }
-                
-                return {
-                    idx: post.idx,
-                    createTime: post.createTime,
-                    creator: creatorInfo,
-                    content: post.content,
-                    status: post.status,
-                    message: message,
-                    postImg: postImg,
-                    isLike: isLike,
-                    likeCount:post.meta.like.length
-                };
-            })
-        );
-
-        return res.send({
-            type: 'success',
-            posts:posts.reverse(),
-            message: '用戶資料查詢成功。',
-        });
     } catch (e) {
         console.log(e);
         return res.send({
