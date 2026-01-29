@@ -243,101 +243,7 @@ router.get('/api/post/getPost', authMiddleware, async (req, res) => {
             });
         }
 
-        posts = await Promise.all(
-            posts.map(async (post) => {
-                let postImg = [];
-                const databaseUrl = post.databaseUrl;
-
-                if (fs.existsSync(databaseUrl)) {
-
-                    // 支援 v1.5.0.0 後續的讀取版本
-                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
-                        postImg = post.attachmentInfo.map((p) => {
-                           return {
-                                name: p.filename,
-                                url: `/api/post/image/${post.idx}/${p.filename}`,
-                                position: p.position
-                           }
-                        })
-                    }
-                    else { // 支援 v1.5.0.0 以前的讀取版本
-                        let attachmentInfo = fs.readdirSync(databaseUrl).map((file) => {
-
-                            // 更改原先檔案的資料儲存結構
-                            const uuid = uuidv4();
-                            const newFilename = uuid + path.extname(file);
-                            const defaultPosition = {x:0, y:0, referWidth: 0, scale: 1}
-                            
-                            const oldPath = path.join(databaseUrl, file);
-                            const newPath = path.join(databaseUrl, newFilename);
-                            fs.renameSync(oldPath, newPath);
-
-                            // 同時撰寫要回傳的資料
-                            postImg.push({
-                                name: newFilename,
-                                url: `/api/post/image/${post.idx}/${newFilename}`,
-                                position: defaultPosition
-                            })
-
-                            return {
-                                filename: newFilename,
-                                id: uuid,
-                                position: defaultPosition
-                            };
-                        })
-
-                        post.attachmentInfo = attachmentInfo
-                        await post.save();
-
-                    }
-                }
-
-                // 創建者
-                const creator = await userModel.findOne({idx:post.creator.idx})
-                let creatorInfo = {
-                    name : creator.name,
-                    userImgUrl: creator.userImgUrl.url
-                }
-
-                const isLike = post.meta.like.some((likeUser) => likeUser.idx === req.user.idx);
-
-                // 留言
-
-                const userIdxSet = new Set(post.meta.message.map(m => m.idx));
-
-                const users = await userModel.find(
-                    { idx: { $in: [...userIdxSet] }, status: true },
-                    { idx: 1, name: 1, level: 1, userImgUrl: 1 }
-                );
-
-                const userMap = new Map(users.map(u => [u.idx, u]));
-
-                const message = post.meta.message.map(i => {
-                    const user = userMap.get(i.idx);
-                    if (!user) return null;
-
-                    return {
-                        name: user.name,
-                        level: user.level,
-                        userImgUrl: user.userImgUrl.url,
-                        createTime: i.createTime,
-                        message: i.message
-                    };
-                }).filter(Boolean);
-                
-                return {
-                    idx: post.idx,
-                    createTime: post.createTime,
-                    creator: creatorInfo,
-                    content: post.content,
-                    status: post.status,
-                    message: message,
-                    postImg: postImg,
-                    isLike: isLike,
-                    likeCount:post.meta.like.length
-                };
-            })
-        );
+        posts = await getPostResponse(posts, req.user);
 
         return res.send({
             type: 'success',
@@ -387,101 +293,7 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
             })
         }
 
-        posts = await Promise.all(
-            posts.map(async (post) => {
-                let postImg = [];
-                const databaseUrl = post.databaseUrl;
-
-                if (fs.existsSync(databaseUrl)) {
-
-                    // 支援 v1.5.0.0 後續的讀取版本
-                    if(post.attachmentInfo && post.attachmentInfo.length > 0){
-                        postImg = post.attachmentInfo.map((p) => {
-                           return {
-                                name: p.filename,
-                                url: `/api/post/image/${post.idx}/${p.filename}`,
-                                position: p.position
-                           }
-                        })
-                    }
-                    else { // 支援 v1.5.0.0 以前的讀取版本
-                        let attachmentInfo = fs.readdirSync(databaseUrl).map((file) => {
-
-                            // 更改原先檔案的資料儲存結構
-                            const uuid = uuidv4();
-                            const newFilename = uuid + path.extname(file);
-                            const defaultPosition = {x:0, y:0, referWidth: 0, scale: 1}
-                            
-                            const oldPath = path.join(databaseUrl, file);
-                            const newPath = path.join(databaseUrl, newFilename);
-                            fs.renameSync(oldPath, newPath);
-
-                            // 同時撰寫要回傳的資料
-                            postImg.push({
-                                name: newFilename,
-                                url: `/api/post/image/${post.idx}/${newFilename}`,
-                                position: defaultPosition
-                            })
-
-                            return {
-                                filename: newFilename,
-                                id: uuid,
-                                position: defaultPosition
-                            };
-                        })
-
-                        post.attachmentInfo = attachmentInfo
-                        await post.save();
-
-                    }
-                }
-
-                // 創建者
-                const creator = await userModel.findOne({idx:post.creator.idx})
-                let creatorInfo = {
-                    name : creator.name,
-                    userImgUrl: creator.userImgUrl.url
-                }
-
-                const isLike = post.meta.like.some((likeUser) => likeUser.idx === req.user.idx);
-
-                // 留言
-
-                const userIdxSet = new Set(post.meta.message.map(m => m.idx));
-
-                const users = await userModel.find(
-                    { idx: { $in: [...userIdxSet] }, status: true },
-                    { idx: 1, name: 1, level: 1, userImgUrl: 1 }
-                );
-
-                const userMap = new Map(users.map(u => [u.idx, u]));
-
-                const message = post.meta.message.map(i => {
-                    const user = userMap.get(i.idx);
-                    if (!user) return null;
-
-                    return {
-                        name: user.name,
-                        level: user.level,
-                        userImgUrl: user.userImgUrl.url,
-                        createTime: i.createTime,
-                        message: i.message
-                    };
-                }).filter(Boolean);
-                
-                return {
-                    idx: post.idx,
-                    createTime: post.createTime,
-                    creator: creatorInfo,
-                    content: post.content,
-                    status: post.status,
-                    message: message,
-                    postImg: postImg,
-                    isLike: isLike,
-                    likeCount:post.meta.like.length
-                };
-            })
-        );
+        posts = await getPostResponse(posts, req.user);
 
         return res.send({
             type: 'success',
@@ -496,6 +308,126 @@ router.get('/api/post/share/:share', authMiddleware, async (req, res) => {
         });
     }
 });
+
+// （返回對應貼文呈現內容）
+async function getPostResponse(posts, currentUser) {
+    
+    const userIdxSet = new Set();
+
+    for (const post of posts) {
+        // creator
+        if (post.creator?.idx) {
+            userIdxSet.add(post.creator.idx);
+        }
+
+        // message users
+        for (const m of post.meta.message) {
+            if (m.idx) {
+                userIdxSet.add(m.idx);
+            }
+        }
+    }
+
+    // 一次汲取所有會用到的 users
+    const users = await userModel.find(
+        { idx: { $in: [...userIdxSet] }, status: true },
+        { idx: 1, name: 1, level: 1, userImgUrl: 1 }
+    );
+
+    // 建立 Map
+    const userMap = new Map(users.map(u => [u.idx, u]));
+
+    return Promise.all(
+        posts.map(async (post) => {
+            let postImg = [];
+            const databaseUrl = post.databaseUrl;
+
+            if (fs.existsSync(databaseUrl)) {
+
+                // v1.5.0.0 之後
+                if (post.attachmentInfo && post.attachmentInfo.length > 0) {
+                    postImg = post.attachmentInfo.map(p => ({
+                        name: p.filename,
+                        url: `/api/post/image/${post.idx}/${p.filename}`,
+                        position: p.position
+                    }));
+                }
+                // v1.5.0.0 以前（migration）
+                else {
+                    const attachmentInfo = fs.readdirSync(databaseUrl).map(file => {
+                        const uuid = uuidv4();
+                        const newFilename = uuid + path.extname(file);
+                        const defaultPosition = { x: 0, y: 0, referWidth: 0, scale: 1 };
+
+                        fs.renameSync(
+                            path.join(databaseUrl, file),
+                            path.join(databaseUrl, newFilename)
+                        );
+
+                        postImg.push({
+                            name: newFilename,
+                            url: `/api/post/image/${post.idx}/${newFilename}`,
+                            position: defaultPosition
+                        });
+
+                        return {
+                            filename: newFilename,
+                            id: uuid,
+                            position: defaultPosition
+                        };
+                    });
+
+                    post.attachmentInfo = attachmentInfo;
+                    await post.save();
+                }
+            }
+
+            // 創建者
+            const creator = userMap.get(post.creator?.idx);
+            const creatorInfo = creator ? {
+                name: creator.name,
+                userImgUrl: creator.userImgUrl.url
+            } : {
+                name: '已刪除使用者',
+                userImgUrl: null
+            };
+
+            // like
+            const isLike = post.meta.like.some(
+                likeUser => likeUser.idx === currentUser.idx
+            );
+
+            // 留言
+            const message = post.meta.message
+                .map(i => {
+                    const user = userMap.get(i.idx);
+                    if (!user) return null;
+
+                    return {
+                        name: user.name,
+                        level: user.level,
+                        userImgUrl: user.userImgUrl.url,
+                        createTime: i.createTime,
+                        message: i.message
+                    };
+                })
+                .filter(Boolean);
+
+            return {
+                idx: post.idx,
+                createTime: post.createTime,
+                creator: creatorInfo,
+                content: post.content,
+                status: post.status,
+                message,
+                postImg,
+                isLike,
+                likeCount: post.meta.like.length
+            };
+        })
+    );
+}
+
 
 // 隱藏貼文
 router.put('/api/post/hidePost/:idx', authMiddleware, async (req, res) => {
