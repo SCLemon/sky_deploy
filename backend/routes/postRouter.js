@@ -63,26 +63,15 @@ router.post('/api/post/create',authMiddleware,upload.fields([{ name: 'attachment
                 let availableAttachmentInfo = [];
 
                 attachments.forEach((file,idx) => {
-                    const filePath = `${folderPath}/${attachmentInfo[idx].id}${path.extname(file.originalname)}`
+                    const newId = uuidv4();
+                    const filePath = `${folderPath}/${newId}${path.extname(file.originalname)}`
                     fs.renameSync(file.path, filePath);
 
-                    const { url, ...rest } = attachmentInfo[idx];
                     availableAttachmentInfo.push({
-                        filename: `${attachmentInfo[idx].id}${path.extname(file.originalname)}`,
-                        ...rest
+                        filename: `${newId}${path.extname(file.originalname)}`,
+                        id: newId,
+                        position: attachmentInfo[idx].position
                     });
-                    /*  儲存格式如下
-                        {
-                            "filename" : "95dfd8cc-72c9-4951-8078-61c8b48cadc9.png",
-                            "id" : "95dfd8cc-72c9-4951-8078-61c8b48cadc9",
-                            "position" : {
-                                "x" : NumberInt(0),
-                                "y" : NumberInt(0),
-                                "referWidth" : NumberInt(0),
-                                "scale" : NumberInt(1)
-                            }
-                        }
-                    */
 
                 });
                 newPost.attachmentInfo = availableAttachmentInfo;
@@ -166,37 +155,62 @@ router.delete('/api/post/deletePost/:idx',authMiddleware,async(req,res)=>{
 })
 
 // 修改貼文內容
-router.post('/api/post/modifyPost/:idx',authMiddleware,async(req,res)=>{
+router.post('/api/post/modifyPost/:idx',authMiddleware, upload.fields([{ name: 'attachments'}]),async(req,res)=>{
 
     try {
         if (req.user.type === 'teacher') {
 
             const idx = req.params.idx;
+            
+            let attachments = req.files['attachments']?req.files['attachments']:[]
+            
+            if (!idx || typeof idx !== 'string' || idx.length !== 36) return res.send({ type: 'error', message: '貼文修改失敗！'});
 
-            if (!idx || typeof idx !== 'string' || idx.length !== 36) {
-                return res.send({
-                    type: 'error',
-                    message: '貼文修改失敗！'
+            const post = await postModel.findOne({idx:idx, 'creator.idx':req.user.idx, group:req.user.group});
+
+            if(!post) return res.send({ type: 'error',  message: `貼文修改失敗 (貼文不存在)`});
+            
+            post.content = req.body.content;
+            await post.save();
+        
+            try{
+
+                // 貼文專屬資料夾
+                const folderPath = `${post.databaseUrl}`
+
+                // 重新創建並寫入資料夾中
+                if (fs.existsSync(folderPath)) fs.rmdirSync(folderPath, { recursive: true }); 
+                fs.mkdirSync(folderPath, { recursive: true });
+
+                // 寫入圖片
+                const attachmentInfo = JSON.parse(req.body.attachmentInfo);
+                let availableAttachmentInfo = [];
+
+                attachments.forEach((file,idx) => {
+
+                    const newId = uuidv4();
+                    const filePath = `${folderPath}/${newId}${path.extname(file.originalname)}`
+                    fs.renameSync(file.path, filePath);
+
+                    availableAttachmentInfo.push({
+                        filename: `${newId}${path.extname(file.originalname)}`,
+                        id: newId,
+                        position: attachmentInfo[idx].position
+                    });
+
                 });
+                post.attachmentInfo = availableAttachmentInfo;
+                await post.save();
+
+                const postResponse = await getPostResponse([post], req.user);
+
+                return res.send({ type:'success', message:'貼文修改成功。', post: postResponse[0]});
+
             }
-
-            const post = await postModel.findOneAndUpdate({idx:idx, 'creator.idx':req.user.idx, group:req.user.group},{
-                $set:{
-                    content: req.body.content
-                }
-            },{new:true})
-
-            if(!post){
-                return res.send({
-                    type: 'error',
-                    message: `貼文修改失敗！`,
-                });
+            catch(e){
+                console.log(e)
+                return res.send({ type:'error', message:'貼文修改失敗。'});
             }
-
-            return res.send({
-                type: 'success',
-                message: `貼文已成功修改。`,
-            });
         } 
         else {
             return res.send({
