@@ -8,10 +8,10 @@ const app = express();
 const PORT = process.env.PORT || 443;
 
 // 加载 SSL 憑證
-const {keyForHttps , pemForHttps} = require('./sslPath.js')
+const {originForHttps , keyForHttps} = require('./sslPath.js')
 const options = {
   key: fs.readFileSync(path.resolve(__dirname, keyForHttps)),
-  cert: fs.readFileSync(path.resolve(__dirname, pemForHttps))
+  cert: fs.readFileSync(path.resolve(__dirname, originForHttps))
 };
 
 app.use('/api/', createProxyMiddleware({
