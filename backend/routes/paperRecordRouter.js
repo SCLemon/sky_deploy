@@ -32,7 +32,7 @@ router.post('/api/paperRecord/add',authMiddleware, async (req, res) => {
     const uuid = uuidv4();
     if(req.user.type == 'teacher'){
 
-        if(!req.body || req.body.name.trim() ==''){
+        if(!req.body || !req.body.name || req.body.name.trim() ==''){
             return res.send({ type: 'error',message: '資料格式錯誤。'});
         }
 
