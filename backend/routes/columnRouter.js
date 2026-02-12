@@ -101,19 +101,41 @@ router.get('/api/learn/getCourse', authMiddleware, async (req, res) => {
 });
 
 // 返回圖片
-router.get('/api/learn/getCourseBanner/:idx/:imageName',async (req, res) => {
-    const { idx, imageName } = req.params;
-    
-    const course = await courseModel.findOne({ idx: idx });
-    const folderPath = course.folderPath;
-    const filePath = path.join(folderPath, 'banner', imageName);
+router.get('/api/learn/getCourseBanner/:idx/:imageName', async (req, res) => {
+    try {
+        const { idx, imageName } = req.params;
 
-    if (fs.existsSync(filePath)) {
+        const course = await courseModel.findOne({ idx: idx });
 
-        const fileStream = fs.createReadStream(filePath);
-        fileStream.pipe(res);
-    } else {
-        res.status(404).send('File not found');
+        if (!course || !course.folderPath) {
+            return res.status(404).send('File not found');
+        }
+
+        // banner 資料夾
+        const baseDir = path.resolve(course.folderPath, 'banner');
+        const requestedPath = path.resolve(baseDir, imageName);
+
+        // 防止跳出指定資料夾
+        if (!requestedPath.startsWith(baseDir + path.sep)) {
+            return res.status(403).send('Access denied');
+        }
+
+        // 限制副檔名
+        const allowedExt = ['.jpg', '.jpeg', '.png', '.webp'];
+        if (!allowedExt.includes(path.extname(imageName).toLowerCase())) {
+            return res.status(400).send('Invalid file type');
+        }
+
+        if (fs.existsSync(requestedPath)) {
+            const fileStream = fs.createReadStream(requestedPath);
+            fileStream.pipe(res);
+        } else {
+            return res.status(404).send('File not found');
+        }
+
+    } catch (e) {
+        console.error(e);
+        return res.status(500).send('Internal server error when retrieving banner');
     }
 });
 

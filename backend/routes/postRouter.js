@@ -629,18 +629,39 @@ router.post('/api/post/message', authMiddleware, async (req, res) => {
 
 // 返回貼文圖片
 router.get('/api/post/image/:idx/:imageName',async (req, res) => {
-    const { idx, imageName } = req.params;
+    try{
+        const { idx, imageName } = req.params;
     
-    const post = await postModel.findOne({ idx: idx });
-    const databaseUrl = post.databaseUrl;
-    const filePath = path.join(databaseUrl, imageName);
+        const post = await postModel.findOne({ idx: idx });
 
-    if (fs.existsSync(filePath)) {
+        if(!post || !post.databaseUrl){
+            return res.status(404).send('File not found');
+        }
 
-        const fileStream = fs.createReadStream(filePath);
-        fileStream.pipe(res);
-    } else {
-        res.status(404).send('File not found');
+        const baseDir = path.resolve(post.databaseUrl);
+        const requestedPath = path.resolve(baseDir, imageName);
+    
+        // 防止跳躍出指定資料夾路徑
+        if (!requestedPath.startsWith(baseDir + path.sep)) {
+            return res.status(403).send('Access denied');
+        }
+
+        // 限制讀取副檔名
+        const allowedExt = ['.jpg', '.jpeg', '.png', '.webp'];
+        if (!allowedExt.includes(path.extname(imageName).toLowerCase())) {
+            return res.status(400).send('Invalid file type');
+        }
+
+        if (fs.existsSync(requestedPath)) {
+            const fileStream = fs.createReadStream(requestedPath);
+            fileStream.pipe(res);
+        } else {
+            return res.status(404).send('File not found');
+        }
+    }
+    catch(e){
+        console.error(e);
+        return res.status(500).send('Internal server error when retrieving image');
     }
 });
 

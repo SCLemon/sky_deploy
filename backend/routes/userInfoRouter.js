@@ -160,7 +160,6 @@ router.get('/api/userInfo/getUserInfo/:idx',authMiddleware,async (req, res) => {
     }
 });
 
-
 router.post('/api/userInfo/modifyUserInfo/:idx',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory,async (req, res) => {
     const idx = req.params.idx;
     const { password, name, phone, address, level, mailAddress} = JSON.parse(req.body.userInfo);
@@ -258,7 +257,7 @@ router.post('/api/userInfo/modifyUserInfo/:idx',authMiddleware,upload.fields([{ 
     }
 });
 
-// 返回大頭照
+// 返回個人資料維護中的大頭照
 router.get('/api/userInfo/getPhotoStickers/:idx',async (req, res) => {
 
     const user = await userModel.findOne({idx: req.params.idx})
