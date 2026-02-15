@@ -14,7 +14,7 @@ const { upload, autoCleanupTmp } = require('../config/multer.config');
 
 
 // 創建課程
-router.post('/api/infoPage/createCourse',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 2}]),autoCleanupTmp,checkClassNum,checkUsageMemory, async (req, res) => {
+router.post('/api/infoPage/createCourse',authMiddleware,upload.fields([{ name: 'attachments'}]),autoCleanupTmp,checkClassNum,checkUsageMemory, async (req, res) => {
     
     const {courseId,courseName, courseType,lecturer} = req.body;
 

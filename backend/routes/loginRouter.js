@@ -58,7 +58,7 @@ router.post('/login/anonymous', async (req, res) => {
         return res.send({
             type:'success',
             userInfo: userData,
-            message:'登入成功！'
+            message:'訪客模式登入成功！'
         });
         
     } catch (e) {

@@ -60,10 +60,27 @@ const postSchema = new mongoose.Schema({
     },
     attachmentInfo:{
         type: Array,
-        default: [],
+        default: [
+            
+        ],
     }
 });
 const postModel = mongoose.model('posts', postSchema);
 
 module.exports = postModel;
 
+/*
+    "attachmentInfo" : [
+        {
+            "filename" : "6f139b0f-700f-4bdf-9f6b-a20bcb68f726.png",
+            "id" : "6f139b0f-700f-4bdf-9f6b-a20bcb68f726",
+            "url" : "blob:http://localhost:8080/c866d671-3b58-41ad-9254-66eaa10b4e4e",
+            "position" : {
+                "x" : NumberInt(0),
+                "y" : 148.625,
+                "referWidth" : NumberInt(710),
+                "scale" : NumberInt(1)
+            }
+        }
+    ],
+*/

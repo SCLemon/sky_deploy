@@ -19,6 +19,11 @@ const { upload, autoCleanupTmp } = require('../config/multer.config');
 router.post('/api/userInfo/updateIcon',authMiddleware,upload.fields([{ name: 'attachments', maxCount: 1}]),autoCleanupTmp,checkUsageMemory, async (req, res) => {
     const token = req.headers['x-user-token']
     try {
+
+        if(req.user.account == 'Visitor') {
+            return res.send({ type:'error', message:'訪客帳號無法修改頭像。'});
+        }
+
         const groupInfo = await groupModel.findOne({group: req.user.group});
         if(!groupInfo){
             return res.send({
